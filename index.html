@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TOEIC 600">
+<title>TOEIC 600 Pro Flashcards</title>
+<style>
+  /* Cấu hình các biến màu sắc hệ thống mặc định (Dark Mode) */
+  :root[data-theme="dark"] {
+    --bg: #090d11;
+    --panel: #141a21;
+    --panel-brighter: #1e2631;
+    --accent: #ffb454;
+    --accent2: #5fb3a3;
+    --text: #f0f4f8;
+    --sub: #8292a1;
+    --green: #4caf50;
+    --red: #f44336;
+    --blue: #2196f3;
+    --border: #1e2936;
+    --filter-active-text: #000000;
+  }
+
+  /* Cấu hình các biến màu sắc cho Light Mode cao cấp */
+  :root[data-theme="light"] {
+    --bg: #f4f7f9;
+    --panel: #ffffff;
+    --panel-brighter: #f0f3f6;
+    --accent: #e67e22;
+    --accent2: #16a085;
+    --text: #2c3e50;
+    --sub: #7f8c8d;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --blue: #3498db;
+    --border: #e2e8f0;
+    --filter-active-text: #ffffff;
+  }
+  
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Header Layout */
+  header {
+    padding: 16px 20px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 22px; margin: 0; font-weight: 800; letter-spacing: -0.5px; }
+  header h1 span { color: var(--accent); }
+  
+  /* Cụm điều khiển giao diện (Theme Selector) */
+  .theme-selector {
+    display: flex;
+    background: var(--panel-brighter);
+    border: 1px solid var(--border);
+    padding: 2px;
+    border-radius: 12px;
+  }
+  .theme-btn {
+    background: none; border: none; font-size: 13px; padding: 6px 10px;
+    border-radius: 9px; cursor: pointer; color: var(--sub); font-weight: 600;
+    transition: all 0.2s;
+  }
+  .theme-btn.active {
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .stats-header { text-align: right; font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; margin-top: 4px;}
+  .stats-header strong { color: var(--accent2); }
+
+  /* Progress System */
+  .progress-wrap { padding: 10px 20px 12px; }
+  .progress-bar { height: 6px; background: var(--panel-brighter); border-radius: 10px; overflow: hidden; position: relative; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+  /* Filter Slider chips */
+  .filter-row {
+    display: flex; gap: 8px; overflow-x: auto; padding: 4px 20px 12px; scroll-behavior: smooth;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; font-size: 13px; padding: 7px 14px; border-radius: 20px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--sub); font-weight: 600; cursor: pointer;
+  }
+  .chip.active { background: var(--accent); color: var(--filter-active-text); border-color: var(--accent); }
+
+  /* Main Flashcard viewport */
+  .main {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 10px 20px; min-height: 0; perspective: 1000px;
+  }
+  
+  .card-box {
+    width: 100%; max-width: 400px; height: 100%; max-height: 420px;
+    position: relative; transform-style: preserve-3d;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+    cursor: pointer;
+  }
+  .card-box.flipped { transform: rotateY(180deg); }
+  
+  .card-side {
+    position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+    background: var(--panel); border-radius: 28px; padding: 24px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; border: 1px solid var(--border);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    transition: background 0.3s, border-color 0.3s;
+  }
+  :root[data-theme="dark"] .card-side { box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  .card-back { transform: rotateY(180deg); }
+
+  /* Flashcard Content Elements */
+  .tagrow { position: absolute; top: 20px; left: 24px; right: 24px; display: flex; justify-content: space-between; align-items: center; }
+  .tag { background: var(--panel-brighter); padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; color: var(--accent2); text-transform: uppercase; }
+  .srm-badge { font-size: 11px; color: var(--accent); background: rgba(230,126,34,0.1); padding: 4px 8px; border-radius: 8px; font-weight: bold;}
+  :root[data-theme="dark"] .srm-badge { background: rgba(255,180,84,0.1); }
+
+  .word { font-size: 40px; font-weight: 800; margin: 10px 0 0 0; word-break: break-word; letter-spacing: -0.5px; }
+  .phonetic-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .phonetic { color: var(--sub); font-size: 16px; font-family: monospace; }
+  .audio-btn { background: none; border: none; color: var(--accent2); font-size: 18px; cursor: pointer; padding: 4px; }
+  
+  .pos { margin-top: 12px; font-size: 12px; color: var(--text); background: var(--panel-brighter); padding: 2px 10px; border-radius: 8px; font-weight: 600; font-style: italic; border: 1px solid var(--border); }
+  .divider { width: 50%; height: 1px; background: var(--border); margin: 24px 0; }
+  
+  .meaning { font-size: 26px; font-weight: 700; color: var(--accent); margin: 0; }
+  .example { margin-top: 16px; font-size: 14px; color: var(--text); font-style: italic; line-height: 1.5; max-width: 90%; }
+  
+  .hint { position: absolute; bottom: 20px; font-size: 12px; color: var(--sub); letter-spacing: 0.5px; }
+
+  /* Controls interface */
+  .controls { display: flex; gap: 12px; padding: 12px 20px; }
+  .btn {
+    flex: 1; padding: 16px 0; border-radius: 18px; border: none; font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: transform 0.1s;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-again { background: rgba(244,67,54,0.1); color: var(--red); border: 1px solid rgba(244,67,54,0.2); }
+  .btn-flip { background: var(--panel-brighter); color: var(--text); border: 1px solid var(--border); }
+  .btn-know { background: var(--green); color: #ffffff; }
+  :root[data-theme="dark"] .btn-know { color: #040608; }
+
+  /* Bottom Utility Nav */
+  .nav { display: flex; justify-content: space-between; align-items: center; padding: 4px 20px 16px; font-size: 13px; }
+  .navbtn { background: none; border: none; color: var(--sub); font-size: 13px; font-weight: 600; padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+  .navbtn:active { color: var(--text); }
+  .counter-text { color: var(--sub); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  /* Modal Management System */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease; padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  :root[data-theme="dark"] .modal-overlay { background: rgba(0,0,0,0.85); }
+  .modal-overlay.active { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 24px;
+    width: 100%; max-width: 400px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  }
+  .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h3 { margin: 0; font-size: 18px; }
+  .close-modal { background: none; border: none; color: var(--sub); font-size: 20px; cursor: pointer; }
+  
+  .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+  
+  /* Form components */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; color: var(--sub); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
+  .form-control {
+    width: 100%; background: var(--panel-brighter); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; color: var(--text); font-size: 15px; outline: none;
+  }
+  .form-control:focus { border-color: var(--accent2); }
+  .btn-submit { background: var(--accent2); color: var(--filter-active-text); width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 8px; }
+
+  /* Dictionary List Manager */
+  .word-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .word-item-info h4 { margin: 0 0 4px 0; font-size: 16px; }
+  .word-item-info p { margin: 0; font-size: 12px; color: var(--sub); }
+  .btn-delete { background: none; border: none; color: var(--red); font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px; }
+
+  /* Add to Home Screen Prompt (iOS Custom) */
+  .pwa-prompt {
+    position: fixed; bottom: 20px; left: 20px; right: 20px; background: var(--panel-brighter);
+    border: 1px solid var(--accent); border-radius: 20px; padding: 16px; z-index: 999;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: none; flex-direction: column; gap: 10px;
+  }
+  .pwa-prompt-text { font-size: 13px; line-height: 1.5; color: var(--text); }
+  .pwa-prompt-icon { display: inline-block; width: 20px; height: 20px; background: var(--panel); color: var(--text); text-align: center; border-radius: 4px; line-height: 20px; font-weight: bold; border: 1px solid var(--border);}
+  .flipped .word { font-size:34px; }
+</style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>TOEIC <span>600</span></h1>
+      <div class="stats-header" id="statsHeader">Đang tải...</div>
+    </div>
+    <!-- Bộ điều khiển chế độ Light/Dark/System -->
+    <div class="theme-selector">
+      <button class="theme-btn" id="theme-light" onclick="changeTheme('light')">☀️</button>
+      <button class="theme-btn" id="theme-dark" onclick="changeTheme('dark')">🌙</button>
+      <button class="theme-btn" id="theme-system" onclick="changeTheme('system')">💻</button>
+    </div>
+  </header>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="filter-row" id="filterRow"></div>
+
+  <div class="main">
+    <div class="card-box" id="card" onclick="flipCard()">
+      <!-- Mặt trước thẻ -->
+      <div class="card-side card-front">
+        <div class="tagrow">
+          <span class="tag" id="f-topic">Topic</span>
+          <span class="srm-badge" id="f-srm">Mới</span>
+        </div>
+        <h2 class="word" id="f-word">Word</h2>
+        <div class="phonetic-row">
+          <span class="phonetic" id="f-phonetic">/phonetic/</span>
+          <button class="audio-btn" onclick="speakCurrentWord(event)">🔊</button>
+        </div>
+        <span class="pos" id="f-pos">pos</span>
+        <div class="hint">Chạm để xem nghĩa</div>
+      </div>
+      
+      <!-- Mặt sau thẻ -->
+      <div class="card-side card-back">
+        <div class="tagrow">
+          <span class="tag" id="b-topic">Topic</span>
+          <span class="srm-badge" id="b-srm">Mới</span>
+        </div>
+        <div class="meaning" id="b-meaning">Nghĩa của từ</div>
+        <div class="pos" id="b-pos">pos</div>
+        <div class="divider"></div>
+        <div class="example" id="b-example">Example sentence.</div>
+        <div class="hint">Chạm để xem từ vựng</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-again" onclick="handleSrm(false)">😕 Quên</button>
+    <button class="btn btn-flip" onclick="flipCard()">🔄 Lật thẻ</button>
+    <button class="btn btn-know" onclick="handleSrm(true)">✅ Nhớ</button>
+  </div>
+
+  <div class="nav">
+    <button class="navbtn" onclick="openModal('dictModal')">📂 Quản lý từ</button>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="navbtn" onclick="stepCard(-1)">←</button>
+      <span class="counter-text" id="counterText">0/0</span>
+      <button class="navbtn" onclick="stepCard(1)">→</button>
+    </div>
+    <button class="navbtn" onclick="openModal('addModal')">➕ Thêm từ</button>
+  </div>
+
+  <!-- MODAL: QUẢN LÝ TỪ VỰNG -->
+  <div class="modal-overlay" id="dictModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Danh sách từ (<span id="dictCount">0</span>)</h3>
+        <button class="close-modal" onclick="closeModal('dictModal')">✕</button>
+      </div>
+      <div class="modal-body" id="dictList"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: THÊM TỪ MỚI -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Bổ sung từ mới</h3>
+        <button class="close-modal" onclick="closeModal('addModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="addWordForm" onsubmit="addNewWord(event)">
+          <div class="form-group">
+            <label>Từ vựng *</label>
+            <input type="text" id="in-word" class="form-control" required placeholder="Ví dụ: Schedule">
+          </div>
+          <div class="form-group">
+            <label>Phiên âm</label>
+            <input type="text" id="in-phone" class="form-control" placeholder="/ˈskedʒuːl/">
+          </div>
+          <div class="form-group">
+            <label>Từ loại</label>
+            <input type="text" id="in-pos" class="form-control" placeholder="n., v., adj.">
+          </div>
+          <div class="form-group">
+            <label>Ý nghĩa (Tiếng Việt) *</label>
+            <input type="text" id="in-mean" class="form-control" required placeholder="Lịch trình, sắp xếp lịch">
+          </div>
+          <div class="form-group">
+            <label>Chủ đề *</label>
+            <input type="text" id="in-topic" class="form-control" required placeholder="General Business">
+          </div>
+          <div class="form-group">
+            <label>Câu ví dụ</label>
+            <input type="text" id="in-eg" class="form-control" placeholder="The meeting is on schedule.">
+          </div>
+          <button type="submit" class="btn-submit">Lưu vào kho từ</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA iOS Smart App Banner Prompt -->
+  <div class="pwa-prompt" id="pwaPrompt">
+    <div class="pwa-prompt-text">
+      <strong>Cài đặt TOEIC 600 vào màn hình chính iPhone:</strong><br>
+      Chạm vào biểu tượng chia sẻ <span class="pwa-prompt-icon">⎙</span> dưới trình duyệt Safari, sau đó chọn <strong>"Thêm vào MH chính" (Add to Home Screen)</strong>.
+    </div>
+    <button class="btn btn-flip" style="padding:8px; font-size:12px; border-radius:10px;" onclick="document.getElementById('pwaPrompt').style.display='none'">Đã hiểu</button>
+  </div>
+
+<script>
+const DEFAULT_WORDS = [
+  {word: "Account", phone: "/əˈkaʊnt/", pos: "n., v.", mean: "Tài khoản; báo cáo; giải thích", topic: "Finance", eg: "Please check your bank account statement."},
+  {word: "Accounting", phone: "/əˈkaʊntɪŋ/", pos: "n.", mean: "Ngành kế toán; sự tính toán", topic: "Finance", eg: "She works in the corporate accounting department."},
+  {word: "Accurate", phone: "/ˈækjərət/", pos: "adj.", mean: "Chính xác, chuẩn xác", topic: "General Business", eg: "Make sure the monthly report is accurate."},
+  {word: "Achieve", phone: "/əˈtʃiːv/", pos: "v.", mean: "Đạt được, hoàn thành", topic: "General Business", eg: "We achieved our annual sales target early."},
+  {word: "Acquire", phone: "/əˈkwaɪər/", pos: "v.", mean: "Mua lại, thu mua; đạt được", topic: "Corporate", eg: "The company acquired a smaller tech firm."},
+  {word: "Address", phone: "/əˈdres/", pos: "v., n.", mean: "Giải quyết; hướng tới; địa chỉ", topic: "General Business", eg: "Please address the safety issue immediately."},
+  {word: "Advance", phone: "/ədˈvæns/", pos: "n., v., adj.", mean: "Sự tiến bộ; ứng trước", topic: "General Business", eg: "He paid in advance for the plane tickets."},
+  {word: "Advertise", phone: "/ˈædvərtaɪz/", pos: "v.", mean: "Quảng cáo, thông báo rộng rãi", topic: "Marketing", eg: "They advertise their items on social media."},
+  {word: "Advice", phone: "/ədˈvaɪs/", pos: "n.", mean: "Lời khuyên, sự chỉ bảo", topic: "General Business", eg: "The consultant gave us excellent advice."},
+  {word: "Affect", phone: "/əˈfekt/", pos: "v.", mean: "Ảnh hưởng đến, tác động", topic: "General Business", eg: "The weather severely affected our flight schedule."},
+  {word: "Agency", phone: "/ˈeɪdʒənsi/", pos: "n.", mean: "Đại lý, cơ quan, môi giới", topic: "Corporate", eg: "She hired a creative marketing agency."},
+  {word: "Agenda", phone: "/əˈdʒendə/", pos: "n.", mean: "Chương trình nghị sự, nội dung họp", topic: "Meetings", eg: "Let's review the meeting agenda first."},
+  {word: "Agreement", phone: "/əˈgriːmənt/", pos: "n.", mean: "Sự thỏa thuận, hợp đồng", topic: "Contracts", eg: "Both sides signed the partnership agreement."},
+  {word: "Allow", phone: "/əˈlaʊ/", pos: "v.", mean: "Cho phép, phê duyệt", topic: "General Business", eg: "Visitors are not allowed inside the facility."},
+  {word: "Amount", phone: "/əˈmaʊnt/", pos: "n.", mean: "Số lượng, tổng số lượng", topic: "Finance", eg: "The total amount of the invoice is $500."},
+  {word: "Analysis", phone: "/əˈnæləsɪs/", pos: "n.", mean: "Sự phân tích, nghiên cứu", topic: "Research", eg: "The data analysis took over two weeks."},
+  {word: "Announce", phone: "/əˈnaʊns/", pos: "v.", mean: "Thông báo, công bố công khai", topic: "Corporate", eg: "They announced the new promotion policy today."},
+  {word: "Annual", phone: "/ˈænjuəl/", pos: "adj.", mean: "Hàng năm, định kỳ một năm", topic: "Finance", eg: "We are preparing for the annual shareholders meeting."},
+  {word: "Apologize", phone: "/əˈpɒlədʒaɪz/", pos: "v.", mean: "Xin lỗi, tạ lỗi", topic: "Customer Service", eg: "He apologized to the client for the delay."},
+  {word: "Appliance", phone: "/əˈplaɪəns/", pos: "n.", mean: "Thiết bị, dụng cụ gia dụng", topic: "General Business", eg: "All modern kitchen appliances are on sale."},
+  {word: "Applicant", phone: "/ˈæplɪkənt/", pos: "n.", mean: "Người ứng tuyển, thí sinh", topic: "HR", eg: "There are many qualified applicants for this job."},
+  {word: "Application", phone: "/ˌæplɪˈkeɪʃn/", pos: "n.", mean: "Đơn xin việc; ứng dụng", topic: "HR / IT", eg: "Submit your job application by Friday."},
+  {word: "Appoint", phone: "/əˈpɔɪnt/", pos: "v.", mean: "Bổ nhiệm, chỉ định; định ngày", topic: "HR", eg: "She was appointed managing director yesterday."},
+  {word: "Appointment", phone: "/əˈpɔɪntmənt/", pos: "n.", mean: "Cuộc hẹn lịch; sự bổ nhiệm", topic: "Meetings", eg: "I have an important client appointment at 2 PM."},
+  {word: "Appreciate", phone: "/əˈpốlieɪt/", pos: "v.", mean: "Đánh giá cao; ghi nhận; tăng giá", topic: "Customer Service", eg: "We highly appreciate your long-term support."}
+];
+
+let words = [];
+let currentCategory = "ALL";
+let currentIndex = 0;
+
+// ----- HỆ THỐNG QUẢN LÝ THEME (LIGHT / DARK / SYSTEM) -----
+function initTheme() {
+  const savedTheme = localStorage.getItem('toeic_theme') || 'system';
+  changeTheme(savedTheme, false);
+
+  // Lắng nghe hệ thống thay đổi chế độ sáng tối toàn cục của thiết bị
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if (localStorage.getItem('toeic_theme') === 'system') {
+      applyTheme(e.matches ? 'dark' : 'light');
+    }
+  });
+}
+
+function changeTheme(themeMode, save = true) {
+  if (save) localStorage.setItem('toeic_theme', themeMode);
+
+  // Reset trạng thái nút active
+  document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`theme-${themeMode}`).classList.add('active');
+
+  if (themeMode === 'system') {
+    const systemSaysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(systemSaysDark ? 'dark' : 'light');
+  } else {
+    applyTheme(themeMode);
+  }
+}
+
+function applyTheme(actualTheme) {
+  document.documentElement.setAttribute('data-theme', actualTheme);
+}
+
+// ----- QUẢN LÝ DỮ LIỆU BỘ NHỚ -----
+function initStorage() {
+  if (!localStorage.getItem('toeic_words')) {
+    const parsed = DEFAULT_WORDS.map(w => ({
+      ...w,
+      id: Math.random().toString(36).substr(2, 9),
+      interval: 1, repetition: 0, efactor: 2.5, dueDate: Date.now()
+    }));
+    localStorage.setItem('toeic_words', JSON.stringify(parsed));
+  }
+  words = JSON.parse(localStorage.getItem('toeic_words'));
+}
+
+function saveStorage() {
+  localStorage.setItem('toeic_words', JSON.stringify(words));
+}
+
+function getFilteredWords() {
+  let list = words;
+  if (currentCategory === "REVIEW") {
+    const now = Date.now();
+    list = words.filter(w => w.dueDate <= now);
+    if(list.length === 0) {
+      list = [...words].sort((a,b) => a.repetition - b.repetition).slice(0, 5);
+    }
+  } else if (currentCategory !== "ALL") {
+    list = words.filter(w => w.topic.toUpperCase() === currentCategory.toUpperCase());
+  }
+  return list;
+}
+
+function renderFilters() {
+  const filterRow = document.getElementById('filterRow');
+  const categories = new Set(words.map(w => w.topic));
+  
+  let html = `<div class="chip ${currentCategory === 'ALL' ? 'active' : ''}" onclick="setCategory('ALL')">Tất cả</div>`;
+  html += `<div class="chip ${currentCategory === 'REVIEW' ? 'active' : ''}" onclick="setCategory('REVIEW')">⏳ Cần ôn tập</div>`;
+  
+  categories.forEach(cat => {
+    html += `<div class="chip ${currentCategory === cat ? 'active' : ''}" onclick="setCategory('${cat}')">${cat}</div>`;
+  });
+  
+  filterRow.innerHTML = html;
+}
+
+function setCategory(cat) {
+  currentCategory = cat;
+  currentIndex = 0;
+  renderFilters();
+  renderCard();
+}
+
+function renderCard() {
+  const currentList = getFilteredWords();
+  const total = currentList.length;
+  
+  if (total === 0) {
+    document.getElementById('f-word').innerText = "Trống";
+    document.getElementById('f-phonetic').innerText = "";
+    document.getElementById('f-pos').innerText = "";
+    document.getElementById('f-topic').innerText = "-";
+    document.getElementById('b-meaning').innerText = "Vui lòng thêm từ mới";
+    document.getElementById('b-example').innerText = "";
+    document.getElementById('counterText').innerText = "0/0";
+    updateGlobalStats();
+    return;
+  }
+
+  if (currentIndex >= total) currentIndex = total - 1;
+  if (currentIndex < 0) currentIndex = 0;
+
+  const item = currentList[currentIndex];
+  const cardElement = document.getElementById('card');
+  cardElement.classList.remove('flipped');
+
+  document.getElementById('f-word').innerText = item.word;
+  document.getElementById('f-phonetic').innerText = item.phone || '';
+  document.getElementById('f-pos').innerText = item.pos || '';
+  document.getElementById('f-topic').innerText = item.topic;
+  
+  const srmText = item.repetition > 0 ? `Cấp độ ${item.repetition}` : "Từ mới";
+  document.getElementById('f-srm').innerText = srmText;
+  document.getElementById('b-srm').innerText = srmText;
+
+  document.getElementById('b-meaning').innerText = item.mean;
+  document.getElementById('b-pos').innerText = item.pos || '';
+  document.getElementById('b-topic').innerText = item.topic;
+  document.getElementById('b-example').innerText = item.eg || 'Không có ví dụ.';
+
+  document.getElementById('counterText').innerText = `${currentIndex + 1}/${total}`;
+  updateGlobalStats();
+}
+
+function updateGlobalStats() {
+  const totalCount = words.length;
+  const learnedCount = words.filter(w => w.repetition > 1).length;
+  
+  document.getElementById('statsHeader').innerHTML = `Đã thuộc: <strong>${learnedCount}</strong> / ${totalCount}`;
+  const percent = totalCount > 0 ? (learnedCount / totalCount) * 100 : 0;
+  document.getElementById('progressFill').style.width = `${percent}%`;
+}
+
+function flipCard() {
+  document.getElementById('card').classList.toggle('flipped');
+}
+
+function stepCard(step) {
+  const total = getFilteredWords().length;
+  if (total === 0) return;
+  currentIndex = (currentIndex + step + total) % total;
+  renderCard();
+}
+
+function handleSrm(remembered) {
+  const currentList = getFilteredWords();
+  if (currentList.length === 0) return;
+  
+  const item = currentList[currentIndex];
+  let q = remembered ? 5 : 1;
+
+  if (q >= 3) {
+    if (item.repetition === 0) {
+      item.interval = 1;
+    } else if (item.repetition === 1) {
+      item.interval = 4;
+    } else {
+      item.interval = Math.round(item.interval * item.efactor);
+    }
+    item.repetition += 1;
+  } else {
+    item.repetition = 0;
+    item.interval = 1;
+  }
+
+  item.efactor = item.efactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+  if (item.efactor < 1.3) item.efactor = 1.3;
+
+  const daysInMs = item.interval * 24 * 60 * 60 * 1000;
+  item.dueDate = Date.now() + daysInMs;
+
+  saveStorage();
+  stepCard(1);
+}
+
+function speakCurrentWord(event) {
+  event.stopPropagation();
+  const currentList = getFilteredWords();
+  if (currentList.length === 0) return;
+  
+  const currentWord = currentList[currentIndex].word;
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(currentWord);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.85;
+    window.speechSynthesis.speak(utterance);
+  } else {
+    alert("Trình duyệt không hỗ trợ Web Speech API.");
+  }
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+  if (id === 'dictModal') renderDictList();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function addNewWord(e) {
+  e.preventDefault();
+  const word = document.getElementById('in-word').value.trim();
+  const phone = document.getElementById('in-phone').value.trim();
+  const pos = document.getElementById('in-pos').value.trim();
+  const mean = document.getElementById('in-mean').value.trim();
+  const topic = document.getElementById('in-topic').value.trim();
+  const eg = document.getElementById('in-eg').value.trim();
+
+  const newObj = {
+    id: Math.random().toString(36).substr(2, 9),
+    word, phone, pos, mean, topic, eg,
+    interval: 1, repetition: 0, efactor: 2.5, dueDate: Date.now()
+  };
+
+  words.unshift(newObj);
+  saveStorage();
+  
+  document.getElementById('addWordForm').reset();
+  closeModal('addModal');
+  
+  currentCategory = "ALL";
+  currentIndex = 0;
+  renderFilters();
+  renderCard();
+}
+
+function deleteWord(id) {
+  if (confirm("Xoá vĩnh viễn từ vựng này?")) {
+    words = words.filter(w => w.id !== id);
+    saveStorage();
+    renderDictList();
+    renderFilters();
+    renderCard();
+  }
+}
+
+function renderDictList() {
+  const container = document.getElementById('dictList');
+  document.getElementById('dictCount').innerText = words.length;
+  
+  if (words.length === 0) {
+    container.innerHTML = `<p style="color:var(--sub); text-align:center;">Kho dữ liệu trống.</p>`;
+    return;
+  }
+
+  let html = '';
+  words.forEach(w => {
+    html += `
+      <div class="word-item">
+        <div class="word-item-info">
+          <h4>${w.word} <span style="font-size:12px; font-weight:normal; color:var(--accent2);">${w.pos}</span></h4>
+          <p>${w.mean} | <em>${w.topic}</em></p>
+        </div>
+        <button class="btn-delete" onclick="deleteWord('${w.id}')">Xoá</button>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+function checkPwaPrompt() {
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true;
+  if (isIos && !isStandalone) {
+    setTimeout(() => {
+      document.getElementById('pwaPrompt').style.display = 'flex';
+    }, 3000);
+  }
+}
+
+window.onload = () => {
+  initTheme();
+  initStorage();
+  renderFilters();
+  renderCard();
+  checkPwaPrompt();
+};
+</script>
+</body>
+</html>
