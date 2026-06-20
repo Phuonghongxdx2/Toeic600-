@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TOEIC 600">
 <title>TOEIC 600 Pro Flashcards</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   /* Cấu hình các biến màu sắc hệ thống mặc định (Dark Mode) */
   :root[data-theme="dark"] {
@@ -228,18 +229,40 @@
   .btn-submit { background: var(--accent2); color: var(--filter-active-text); width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 8px; }
 
   /* Dictionary List Manager */
+  .dict-toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 20px 10px; border-bottom: 1px solid var(--border); }
+  .tool-btn {
+    flex: 1 1 auto; min-width: 86px; background: var(--panel-brighter); border: 1px solid var(--border);
+    color: var(--text); font-size: 12px; font-weight: 700; padding: 9px 8px; border-radius: 10px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;
+  }
+  .tool-btn:active { transform: scale(0.96); }
+  .tool-btn.danger { color: var(--red); }
+  .tool-btn.accent { background: var(--accent2); color: var(--filter-active-text); border-color: var(--accent2); }
+  .tool-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dict-search-wrap { padding: 0 20px 10px; }
+  .dict-search {
+    width: 100%; background: var(--panel-brighter); border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px 14px; color: var(--text); font-size: 14px; outline: none;
+  }
+  .dict-selectall-row { display: flex; align-items: center; gap: 8px; padding: 0 20px 8px; font-size: 12px; color: var(--sub); font-weight: 600; }
+  .import-status { font-size: 12px; color: var(--accent2); padding: 0 20px 8px; font-weight: 700; min-height: 16px; }
   .word-item {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
     padding: 12px 0; border-bottom: 1px solid var(--border);
   }
+  .word-item-check { flex: 0 0 auto; width: 18px; height: 18px; accent-color: var(--accent2); cursor: pointer; }
+  .word-item-info { flex: 1; min-width: 0; }
   .word-item-info h4 { margin: 0 0 4px 0; font-size: 16px; }
-  .word-item-info p { margin: 0; font-size: 12px; color: var(--sub); }
+  .word-item-info p { margin: 0; font-size: 12px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .word-item-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+  .btn-edit { background: none; border: none; color: var(--blue); font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px; }
   .btn-delete { background: none; border: none; color: var(--red); font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px; }
   .topic-section-title {
     position: sticky; top: -20px; z-index: 2; margin: 0 -20px 4px; padding: 12px 20px;
     background: var(--panel-brighter); color: var(--accent2); border-bottom: 1px solid var(--border);
     font-size: 13px; font-weight: 800; text-transform: uppercase;
   }
+  .audio-btn.fetching { opacity: 0.5; pointer-events: none; }
 
   /* Add to Home Screen Prompt (iOS Custom) */
   .pwa-prompt {
@@ -346,25 +369,43 @@
         <h3>Danh sách từ (<span id="dictCount">0</span>)</h3>
         <button class="close-modal" onclick="closeModal('dictModal')">✕</button>
       </div>
+      <div class="dict-toolbar">
+        <button type="button" class="tool-btn accent" onclick="document.getElementById('importExcelInput').click()">📥 Nhập Excel</button>
+        <button type="button" class="tool-btn" onclick="exportToExcel()">📤 Xuất Excel</button>
+        <button type="button" class="tool-btn" onclick="bulkFetchPronunciation()">📡 Lấy phiên âm tự động</button>
+        <button type="button" class="tool-btn" id="bulkMoveBtn" onclick="moveSelectedWordsTopic()" disabled>📂 Đổi chủ đề (<span id="selectedCountMove">0</span>)</button>
+        <button type="button" class="tool-btn" onclick="dedupeWordsManually()">🧹 Loại trùng</button>
+        <button type="button" class="tool-btn danger" id="bulkDeleteBtn" onclick="deleteSelectedWords()" disabled>🗑️ Xoá đã chọn (<span id="selectedCount">0</span>)</button>
+        <input type="file" id="importExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFromExcel(event)">
+      </div>
+      <div class="dict-search-wrap">
+        <input type="text" id="dictSearch" class="dict-search" placeholder="🔍 Tìm từ, nghĩa hoặc chủ đề..." oninput="renderDictList()">
+      </div>
+      <div class="dict-selectall-row">
+        <input type="checkbox" id="selectAllCheck" class="word-item-check" onchange="toggleSelectAll(this.checked)">
+        <label for="selectAllCheck">Chọn tất cả (trong kết quả hiện tại)</label>
+      </div>
+      <div class="import-status" id="importStatus"></div>
       <div class="modal-body" id="dictList"></div>
     </div>
   </div>
 
-  <!-- MODAL: THÊM TỪ MỚI -->
+  <!-- MODAL: THÊM / SỬA TỪ -->
   <div class="modal-overlay" id="addModal">
     <div class="modal">
       <div class="modal-header">
-        <h3>Bổ sung từ mới</h3>
+        <h3 id="addModalTitle">Bổ sung từ mới</h3>
         <button class="close-modal" onclick="closeModal('addModal')">✕</button>
       </div>
       <div class="modal-body">
-        <form id="addWordForm" onsubmit="addNewWord(event)">
+        <form id="addWordForm" onsubmit="saveWordForm(event)">
+          <input type="hidden" id="in-id" value="">
           <div class="form-group">
             <label>Từ vựng *</label>
             <input type="text" id="in-word" class="form-control" required placeholder="Ví dụ: Schedule">
           </div>
           <div class="form-group">
-            <label>Phiên âm</label>
+            <label>Phiên âm <span style="text-transform:none; font-weight:400;">(để trống để tự động lấy)</span></label>
             <input type="text" id="in-phone" class="form-control" placeholder="/ˈskedʒuːl/">
           </div>
           <div class="form-group">
@@ -383,7 +424,7 @@
             <label>Câu ví dụ</label>
             <input type="text" id="in-eg" class="form-control" placeholder="The meeting is on schedule.">
           </div>
-          <button type="submit" class="btn-submit">Lưu vào kho từ</button>
+          <button type="submit" class="btn-submit" id="saveWordBtn">Lưu vào kho từ</button>
         </form>
       </div>
     </div>
@@ -961,8 +1002,10 @@ function initStorage() {
     firstLearnedAt: w.firstLearnedAt || null,
     lastReviewedAt: w.lastReviewedAt || null,
     forgetCount: Number.isFinite(w.forgetCount) ? w.forgetCount : 0,
-    reviewCount: Number.isFinite(w.reviewCount) ? w.reviewCount : 0
+    reviewCount: Number.isFinite(w.reviewCount) ? w.reviewCount : 0,
+    audioUrl: w.audioUrl || null
   }));
+  dedupeWords();
   saveStorage();
 }
 
@@ -1315,6 +1358,51 @@ function enhancePronunciationAudio(audioEl) {
   }
 }
 
+function speakCurrentWord(event) {
+  event.stopPropagation();
+  event.preventDefault();
+  const currentList = getFilteredWords();
+  if (currentList.length === 0) return;
+
+  const item = currentList[currentIndex];
+  const currentWord = item.word.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  const audioBtn = document.getElementById('audioBtn');
+
+  // Thứ tự ưu tiên: audio nhúng sẵn trong file (data:) > audio tự động lấy từ Dictionary API (http) > Web Speech API.
+  const embeddedSrc = EMBEDDED_AUDIO[item.word.toLowerCase()];
+  const remoteSrc = item.audioUrl;
+  // Nguồn http(s) cần mạng — nếu đang offline, bỏ qua luôn để không bị treo, chuyển thẳng sang Web Speech.
+  const audioSrc = embeddedSrc || (remoteSrc && navigator.onLine !== false ? remoteSrc : null);
+
+  if (audioSrc) {
+    playPronunciationAudio(audioSrc, audioBtn, () => speakWithWebSpeech(currentWord, audioBtn));
+    return;
+  }
+
+  speakWithWebSpeech(currentWord, audioBtn);
+}
+
+function playPronunciationAudio(src, audioBtn, onFail) {
+  if (embeddedAudioPlayer) {
+    embeddedAudioPlayer.pause();
+    embeddedAudioPlayer.currentTime = 0;
+  }
+  window.speechSynthesis?.cancel();
+  embeddedAudioPlayer = new Audio(src);
+  embeddedAudioPlayer.crossOrigin = 'anonymous';
+  enhancePronunciationAudio(embeddedAudioPlayer);
+  embeddedAudioPlayer.onplay = () => audioBtn?.classList.add('speaking');
+  embeddedAudioPlayer.onended = () => audioBtn?.classList.remove('speaking');
+  embeddedAudioPlayer.onerror = () => {
+    audioBtn?.classList.remove('speaking');
+    onFail();
+  };
+  embeddedAudioPlayer.play().catch(() => {
+    audioBtn?.classList.remove('speaking');
+    onFail();
+  });
+}
+
 function loadEnglishVoices() {
   if (!('speechSynthesis' in window)) return [];
   const voices = window.speechSynthesis.getVoices() || [];
@@ -1322,38 +1410,7 @@ function loadEnglishVoices() {
   return englishVoices;
 }
 
-function speakCurrentWord(event) {
-  event.stopPropagation();
-  event.preventDefault();
-  const currentList = getFilteredWords();
-  if (currentList.length === 0) return;
-
-  const currentWord = currentList[currentIndex].word.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-  const audioBtn = document.getElementById('audioBtn');
-  const embeddedSrc = EMBEDDED_AUDIO[currentList[currentIndex].word.toLowerCase()];
-
-  if (embeddedSrc) {
-    if (embeddedAudioPlayer) {
-      embeddedAudioPlayer.pause();
-      embeddedAudioPlayer.currentTime = 0;
-    }
-    window.speechSynthesis?.cancel();
-    embeddedAudioPlayer = new Audio(embeddedSrc);
-    embeddedAudioPlayer.crossOrigin = 'anonymous';
-    enhancePronunciationAudio(embeddedAudioPlayer);
-    embeddedAudioPlayer.onplay = () => audioBtn?.classList.add('speaking');
-    embeddedAudioPlayer.onended = () => audioBtn?.classList.remove('speaking');
-    embeddedAudioPlayer.onerror = () => {
-      audioBtn?.classList.remove('speaking');
-      alert('Đoạn âm thanh nhúng bị lỗi. Vui lòng mở lại file.');
-    };
-    embeddedAudioPlayer.play().catch(() => {
-      audioBtn?.classList.remove('speaking');
-      alert('Trình duyệt đang chặn âm thanh. Hãy bấm lại biểu tượng loa một lần nữa.');
-    });
-    return;
-  }
-
+function speakWithWebSpeech(currentWord, audioBtn) {
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
     alert('Trình duyệt này không có chức năng đọc từ. Hãy mở file bằng Chrome hoặc Microsoft Edge.');
     return;
@@ -1395,46 +1452,113 @@ function speakCurrentWord(event) {
   }
 }
 
+
 function openModal(id) {
   document.getElementById(id).classList.add('active');
   if (id === 'dictModal') renderDictList();
+  if (id === 'addModal' && !document.getElementById('in-id').value) {
+    resetAddForm();
+  }
 }
 
 function closeModal(id) {
   document.getElementById(id).classList.remove('active');
+  if (id === 'addModal') resetAddForm();
 }
 
-function addNewWord(e) {
+function resetAddForm() {
+  document.getElementById('addWordForm').reset();
+  document.getElementById('in-id').value = '';
+  document.getElementById('addModalTitle').innerText = 'Bổ sung từ mới';
+  document.getElementById('saveWordBtn').innerText = 'Lưu vào kho từ';
+}
+
+function normalizeKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function saveWordForm(e) {
   e.preventDefault();
+  const id = document.getElementById('in-id').value;
   const word = document.getElementById('in-word').value.trim();
-  const phone = document.getElementById('in-phone').value.trim();
-  const pos = document.getElementById('in-pos').value.trim();
+  let phone = document.getElementById('in-phone').value.trim();
   const mean = document.getElementById('in-mean').value.trim();
   const topic = document.getElementById('in-topic').value.trim();
-  const eg = document.getElementById('in-eg').value.trim();
 
-  const newObj = {
-    id: Math.random().toString(36).substr(2, 9),
-    word, phone, pos, mean, topic, eg,
-    interval: 0, repetition: 0, dueDate: Date.now(),
-    firstLearnedAt: null, lastReviewedAt: null, forgetCount: 0, reviewCount: 0
-  };
+  // Chặn trùng từ (không tính chính từ đang sửa).
+  const duplicate = words.find(w => normalizeKey(w.word) === normalizeKey(word) && w.id !== id);
+  if (duplicate) {
+    alert(`Từ "${word}" đã có trong kho (chủ đề: ${duplicate.topic}). Hãy sửa từ đó thay vì thêm trùng.`);
+    return;
+  }
 
-  words.unshift(newObj);
+  const saveBtn = document.getElementById('saveWordBtn');
+  let audioUrl = null;
+  let pos = document.getElementById('in-pos').value.trim();
+  let eg = document.getElementById('in-eg').value.trim();
+
+  // Nếu còn thiếu phiên âm/từ loại/ví dụ, thử tự động lấy từ Dictionary API (yêu cầu mạng).
+  if (!phone || !pos || !eg) {
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'Đang tự động bổ sung...';
+    const fetched = await fetchPronunciationData(word);
+    if (fetched) {
+      if (!phone) phone = fetched.phonetic || '';
+      if (!pos) pos = fetched.pos || '';
+      if (!eg) eg = fetched.example || '';
+      audioUrl = fetched.audioUrl || null;
+    }
+    saveBtn.disabled = false;
+  }
+
+  if (id) {
+    const idx = words.findIndex(w => w.id === id);
+    if (idx !== -1) {
+      words[idx] = {
+        ...words[idx], word, phone, pos, mean, topic: standardizeTopic(topic) || topic, eg,
+        audioUrl: audioUrl || words[idx].audioUrl || null
+      };
+    }
+  } else {
+    words.unshift({
+      id: Math.random().toString(36).substr(2, 9),
+      word, phone, pos, mean, topic, eg, audioUrl,
+      interval: 0, repetition: 0, dueDate: Date.now(),
+      firstLearnedAt: null, lastReviewedAt: null, forgetCount: 0, reviewCount: 0
+    });
+  }
+
+  dedupeWords();
   saveStorage();
-  
-  document.getElementById('addWordForm').reset();
+  resetAddForm();
   closeModal('addModal');
-  
+
   currentCategory = "ALL";
   currentIndex = 0;
   renderFilters();
   renderCard();
 }
 
+function editWord(id) {
+  const item = words.find(w => w.id === id);
+  if (!item) return;
+  document.getElementById('in-id').value = item.id;
+  document.getElementById('in-word').value = item.word;
+  document.getElementById('in-phone').value = item.phone || '';
+  document.getElementById('in-pos').value = item.pos || '';
+  document.getElementById('in-mean').value = item.mean || '';
+  document.getElementById('in-topic').value = item.topic || '';
+  document.getElementById('in-eg').value = item.eg || '';
+  document.getElementById('addModalTitle').innerText = `Sửa từ: ${item.word}`;
+  document.getElementById('saveWordBtn').innerText = 'Cập nhật từ';
+  closeModal('dictModal');
+  openModal('addModal');
+}
+
 function deleteWord(id) {
   if (confirm("Xoá vĩnh viễn từ vựng này?")) {
     words = words.filter(w => w.id !== id);
+    selectedWordIds.delete(id);
     saveStorage();
     renderDictList();
     renderFilters();
@@ -1442,18 +1566,440 @@ function deleteWord(id) {
   }
 }
 
+/* ============== CHỌN & XOÁ HÀNG LOẠT ============== */
+let selectedWordIds = new Set();
+
+function toggleWordSelection(id, checked) {
+  if (checked) selectedWordIds.add(id); else selectedWordIds.delete(id);
+  updateBulkDeleteButton();
+}
+
+function toggleSelectAll(checked) {
+  const visibleIds = getVisibleDictWords().map(w => w.id);
+  if (checked) visibleIds.forEach(id => selectedWordIds.add(id));
+  else visibleIds.forEach(id => selectedWordIds.delete(id));
+  renderDictList();
+}
+
+function updateBulkDeleteButton() {
+  document.getElementById('selectedCount').innerText = selectedWordIds.size;
+  document.getElementById('bulkDeleteBtn').disabled = selectedWordIds.size === 0;
+  document.getElementById('selectedCountMove').innerText = selectedWordIds.size;
+  document.getElementById('bulkMoveBtn').disabled = selectedWordIds.size === 0;
+}
+
+// Di chuyển hàng loạt các từ đã chọn sang một chủ đề khác (gộp vào chủ đề có sẵn hoặc tạo chủ đề mới).
+function moveSelectedWordsTopic() {
+  if (selectedWordIds.size === 0) return;
+  const existingTopics = [...new Set(words.map(w => w.topic))].filter(Boolean).sort();
+  const promptMsg = `Nhập tên chủ đề muốn chuyển ${selectedWordIds.size} từ đã chọn tới` +
+    (existingTopics.length ? `\n\nChủ đề hiện có:\n${existingTopics.join('\n')}` : '') +
+    `\n\n(Gõ tên chủ đề có sẵn để gộp vào, hoặc tên mới để tạo chủ đề mới)`;
+  const newTopicRaw = prompt(promptMsg, '');
+  if (newTopicRaw === null) return;
+  const newTopic = newTopicRaw.trim();
+  if (!newTopic) { alert('Tên chủ đề không được để trống.'); return; }
+
+  const finalTopic = standardizeTopic(newTopic) || newTopic;
+  words.forEach(w => {
+    if (selectedWordIds.has(w.id)) w.topic = finalTopic;
+  });
+
+  selectedWordIds.clear();
+  saveStorage();
+  renderDictList();
+  renderFilters();
+  renderCard();
+  const statusEl = document.getElementById('importStatus');
+  statusEl.innerText = `📂 Đã chuyển sang chủ đề "${finalTopic}".`;
+  setTimeout(() => { statusEl.innerText = ''; }, 4000);
+}
+
+function deleteSelectedWords() {
+  if (selectedWordIds.size === 0) return;
+  if (!confirm(`Xoá vĩnh viễn ${selectedWordIds.size} từ đã chọn?`)) return;
+  words = words.filter(w => !selectedWordIds.has(w.id));
+  selectedWordIds.clear();
+  saveStorage();
+  renderDictList();
+  renderFilters();
+  renderCard();
+}
+
+/* ============== LOẠI BỎ TRÙNG LẶP TỰ ĐỘNG ============== */
+function dedupeWords() {
+  const byKey = new Map();
+  const order = [];
+  words.forEach(w => {
+    const key = normalizeKey(w.word);
+    if (!key) return;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, w);
+      order.push(key);
+    } else {
+      // Giữ lại bản ghi "giàu thông tin" hơn và tiến trình ôn tập cao hơn.
+      const richer = scoreWordRichness(w) > scoreWordRichness(existing) ? w : existing;
+      const merged = {
+        ...richer,
+        interval: Math.max(w.interval || 0, existing.interval || 0),
+        repetition: Math.max(w.repetition || 0, existing.repetition || 0),
+        reviewCount: (w.reviewCount || 0) + (existing.reviewCount || 0) - Math.min(w.reviewCount||0, existing.reviewCount||0),
+        forgetCount: Math.max(w.forgetCount || 0, existing.forgetCount || 0),
+        firstLearnedAt: existing.firstLearnedAt || w.firstLearnedAt || null,
+        audioUrl: existing.audioUrl || w.audioUrl || null
+      };
+      byKey.set(key, merged);
+    }
+  });
+  const removedCount = words.length - order.length;
+  words = order.map(key => byKey.get(key));
+  return removedCount;
+}
+
+function scoreWordRichness(w) {
+  return [w.phone, w.pos, w.mean, w.topic, w.eg, w.audioUrl].filter(Boolean).length;
+}
+
+function dedupeWordsManually() {
+  const removed = dedupeWords();
+  saveStorage();
+  renderDictList();
+  renderFilters();
+  renderCard();
+  const statusEl = document.getElementById('importStatus');
+  statusEl.innerText = removed > 0 ? `🧹 Đã loại bỏ ${removed} từ trùng lặp.` : 'Không có từ trùng lặp.';
+  setTimeout(() => { statusEl.innerText = ''; }, 4000);
+}
+
+/* ============== EXCEL IMPORT / EXPORT ============== */
+const VN_DIACRITIC_RE = /[ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/;
+const WORD_HEADER_HINTS = ['word', 'english', 'eng', 'term', 'vocab', 'vocabulary', 'từ', 'từ vựng', 'tu', 'tuvung', 'tiếng anh', 'tieng anh', 'front'];
+const MEANING_HEADER_HINTS = ['meaning', 'definition', 'translate', 'translation', 'vietnamese', 'viet', 'tiếng việt', 'tieng viet', 'nghĩa', 'nghia', 'dịch', 'dich', 'ý nghĩa', 'y nghia', 'back'];
+const ASCII_WORD_RE = /^[A-Za-z][A-Za-z\s'\-./()]*$/;
+
+const normHeaderText = h => String(h ?? '').trim().toLowerCase();
+
+// Một ô được coi là "giống tiêu đề" nếu khớp (đúng hoặc chứa) từ khoá Word/Meaning đã biết.
+function looksLikeHeaderCell(cell) {
+  const v = normHeaderText(cell);
+  if (!v) return false;
+  return WORD_HEADER_HINTS.some(h => v.includes(h)) || MEANING_HEADER_HINTS.some(h => v.includes(h));
+}
+
+// Dò xem dòng đầu tiên của file có phải là dòng tiêu đề hay đã là dữ liệu thật (file không có tiêu đề).
+function detectHasHeaderRow(aoa) {
+  if (aoa.length === 0) return false;
+  const firstRow = aoa[0];
+
+  // Tín hiệu mạnh nhất: một ô ở dòng đầu khớp từ khoá tiêu đề quen thuộc (Word, Meaning, Nghĩa, Từ vựng...).
+  if (firstRow.some(looksLikeHeaderCell)) return true;
+  if (aoa.length < 3) return false; // không đủ dữ liệu mẫu phía dưới để so sánh đáng tin cậy
+
+  // Không có từ khoá rõ ràng → so sánh "kiểu nội dung" của dòng đầu với các dòng dữ liệu còn lại.
+  const sampleRows = aoa.slice(1, Math.min(aoa.length, 16));
+  const colCount = Math.max(firstRow.length, ...sampleRows.map(r => r.length));
+  let mismatchSignals = 0;
+
+  for (let c = 0; c < colCount; c++) {
+    const headerCell = normHeaderText(firstRow[c]);
+    if (!headerCell) continue;
+    const colValues = sampleRows.map(r => String(r[c] ?? '').trim()).filter(Boolean);
+    if (colValues.length < 2) continue;
+
+    const headerIsVN = VN_DIACRITIC_RE.test(headerCell);
+    const headerIsShortAsciiLabel = ASCII_WORD_RE.test(headerCell) && headerCell.split(/\s+/).length <= 3;
+    const vnRatio = colValues.filter(v => VN_DIACRITIC_RE.test(v)).length / colValues.length;
+    const asciiRatio = colValues.filter(v => ASCII_WORD_RE.test(v)).length / colValues.length;
+    const avgDataLen = colValues.reduce((s, v) => s + v.length, 0) / colValues.length;
+
+    // Cột dữ liệu chủ yếu tiếng Việt nhưng ô đầu lại không phải (hoặc ngược lại) → khả năng cao đó là nhãn tiêu đề.
+    if (vnRatio >= 0.6 && !headerIsVN) mismatchSignals++;
+    if (asciiRatio >= 0.6 && headerIsVN) mismatchSignals++;
+    // Ô đầu là một nhãn ngắn (1-3 từ, không dấu) trong khi dữ liệu thật dài hơn hẳn → nhiều khả năng là tiêu đề.
+    if (headerIsShortAsciiLabel && avgDataLen > 4 && headerCell.length < avgDataLen * 0.6) mismatchSignals++;
+  }
+
+  return mismatchSignals > 0;
+}
+
+// Đọc sheet thành các dòng dữ liệu, tự nhận diện có/không có dòng tiêu đề.
+// Trả về { rows, headerLabels, hasHeader } — rows luôn là mảng object với khoá lấy từ headerLabels.
+function readSheetAsRows(sheet) {
+  const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  const cleaned = aoa.filter(r => Array.isArray(r) && r.some(c => String(c ?? '').trim() !== ''));
+  if (cleaned.length === 0) return { rows: [], headerLabels: [], hasHeader: false };
+
+  const colCount = Math.max(...cleaned.map(r => r.length));
+  const genericKeys = Array.from({ length: colCount }, (_, i) => `col${i}`);
+  const hasHeader = detectHasHeaderRow(cleaned);
+
+  let headerLabels, dataRows;
+  if (hasHeader) {
+    headerLabels = genericKeys.map((key, i) => String(cleaned[0][i] ?? '').trim() || key);
+    dataRows = cleaned.slice(1);
+  } else {
+    headerLabels = genericKeys;
+    dataRows = cleaned;
+  }
+
+  const rows = dataRows.map(r => {
+    const obj = {};
+    headerLabels.forEach((key, i) => { obj[key] = r[i] ?? ''; });
+    return obj;
+  });
+
+  return { rows, headerLabels, hasHeader };
+}
+
+// Tự động dò cột "Word" (tiếng Anh) và "Meaning" (tiếng Việt) dù tiêu đề khác nhau, thứ tự cột khác nhau,
+// hoặc file hoàn toàn không có dòng tiêu đề (dò trực tiếp theo nội dung: chữ Latin thường vs có dấu tiếng Việt).
+function autoDetectColumns(rows, headerLabels, hasHeader = true) {
+  if (!rows.length) return { wordKey: null, meaningKey: null };
+  const headers = headerLabels && headerLabels.length ? headerLabels : Object.keys(rows[0]);
+  if (headers.length === 0) return { wordKey: null, meaningKey: null };
+
+  const norm = normHeaderText;
+  let wordKey = null, meaningKey = null;
+
+  // Chỉ tin vào tên tiêu đề khi file thực sự có dòng tiêu đề.
+  if (hasHeader) {
+    wordKey = headers.find(h => WORD_HEADER_HINTS.includes(norm(h)));
+    meaningKey = headers.find(h => MEANING_HEADER_HINTS.includes(norm(h)));
+
+    // Tiêu đề không khớp danh sách gợi ý → khớp gần đúng (chứa từ khoá).
+    if (!wordKey) wordKey = headers.find(h => WORD_HEADER_HINTS.some(hint => norm(h).includes(hint)));
+    if (!meaningKey) meaningKey = headers.find(h => h !== wordKey && MEANING_HEADER_HINTS.some(hint => norm(h).includes(hint)));
+  }
+
+  // Không có tiêu đề, hoặc tiêu đề không đủ rõ → "đánh hơi" theo nội dung dữ liệu thực tế của từng cột:
+  // cột tiếng Anh (chữ Latin thường, không dấu) → Word; cột có dấu tiếng Việt → Meaning.
+  if (!wordKey || !meaningKey) {
+    const sample = rows.slice(0, Math.min(15, rows.length));
+    const scores = headers.map(h => {
+      const values = sample.map(r => String(r[h] ?? '').trim()).filter(Boolean);
+      if (values.length === 0) return { h, asciiScore: -1, vnScore: -1, avgLen: 0 };
+      const asciiCount = values.filter(v => ASCII_WORD_RE.test(v)).length;
+      const vnCount = values.filter(v => VN_DIACRITIC_RE.test(v)).length;
+      const avgLen = values.reduce((s, v) => s + v.length, 0) / values.length;
+      return { h, asciiScore: asciiCount / values.length, vnScore: vnCount / values.length, avgLen };
+    });
+
+    if (!wordKey) {
+      const candidates = scores.filter(s => s.h !== meaningKey).sort((a, b) => (b.asciiScore - a.asciiScore) || (a.avgLen - b.avgLen));
+      wordKey = candidates[0]?.h || headers[0];
+    }
+    if (!meaningKey) {
+      const candidates = scores.filter(s => s.h !== wordKey).sort((a, b) => (b.vnScore - a.vnScore) || (b.avgLen - a.avgLen));
+      meaningKey = candidates[0]?.h || headers.find(h => h !== wordKey) || headers[0];
+    }
+  }
+
+  // File chỉ có 1 cột duy nhất (hoặc dò ra cùng 1 cột cho cả hai) → không đủ dữ liệu để tách Word và Meaning.
+  if (wordKey && wordKey === meaningKey) {
+    return { wordKey: null, meaningKey: null };
+  }
+
+  return { wordKey, meaningKey };
+}
+
+function exportToExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('Không tải được thư viện Excel. Hãy kiểm tra kết nối mạng rồi thử lại.');
+    return;
+  }
+  const rows = words.map(w => ({
+    Word: w.word, Phonetic: w.phone || '', POS: w.pos || '',
+    Meaning: w.mean || '', Topic: w.topic || '', Example: w.eg || ''
+  }));
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  sheet['!cols'] = [{wch:18},{wch:16},{wch:8},{wch:30},{wch:24},{wch:40}];
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, 'Vocabulary');
+  const dateTag = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(book, `TOEIC600_VocabExport_${dateTag}.xlsx`);
+}
+
+function importFromExcel(event) {
+  const file = event.target.files[0];
+  event.target.value = ''; // cho phép chọn lại cùng file lần sau
+  if (!file) return;
+  if (typeof XLSX === 'undefined') {
+    alert('Không tải được thư viện Excel. Hãy kiểm tra kết nối mạng rồi thử lại.');
+    return;
+  }
+
+  const statusEl = document.getElementById('importStatus');
+  statusEl.innerText = '⏳ Đang đọc file...';
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    let imported = [];
+    try {
+      const data = new Uint8Array(e.target.result);
+      const book = XLSX.read(data, { type: 'array' });
+      const sheet = book.Sheets[book.SheetNames[0]];
+      const { rows, headerLabels, hasHeader } = readSheetAsRows(sheet);
+
+      if (rows.length === 0) {
+        statusEl.innerText = '';
+        alert('File không có dữ liệu.');
+        return;
+      }
+
+      // Chỉ cần dò ra đúng 2 cột: Word (tiếng Anh) và Meaning (tiếng Việt), bất kể tên tiêu đề, vị trí cột,
+      // hoặc file có dòng tiêu đề hay không.
+      const { wordKey, meaningKey } = autoDetectColumns(rows, headerLabels, hasHeader);
+      if (!wordKey || !meaningKey) {
+        statusEl.innerText = '';
+        alert('Không xác định được cột "Word" và "Meaning" trong file. Hãy đảm bảo file có ít nhất 2 cột: từ vựng (tiếng Anh) và nghĩa (tiếng Việt).');
+        return;
+      }
+
+      // Tất cả từ trong cùng một lần nhập được gom vào một chủ đề mặc định,
+      // để sau đó dễ dàng "Đổi chủ đề" hàng loạt sang nhóm mong muốn.
+      const batchTopic = `📥 Mới nhập ${new Date().toLocaleDateString('vi-VN')}`;
+      let skippedEmpty = 0;
+
+      rows.forEach(row => {
+        const word = String(row[wordKey] ?? '').trim();
+        const mean = String(row[meaningKey] ?? '').trim();
+        if (!word || !mean) { skippedEmpty++; return; }
+
+        const newWord = {
+          id: Math.random().toString(36).substr(2, 9),
+          word, mean, phone: '', pos: '', eg: '', topic: batchTopic, audioUrl: null,
+          interval: 0, repetition: 0, dueDate: Date.now(),
+          firstLearnedAt: null, lastReviewedAt: null, forgetCount: 0, reviewCount: 0
+        };
+        words.push(newWord);
+        imported.push(newWord);
+      });
+
+      const removedDuplicates = dedupeWords();
+      saveStorage();
+      renderDictList();
+      renderFilters();
+      renderCard();
+
+      statusEl.innerText = `✅ Đã nhập ${imported.length} từ (cột "${wordKey}" → Word, "${meaningKey}" → Meaning` +
+        (hasHeader ? '' : ', file không có dòng tiêu đề — đã tự nhận diện theo nội dung') + `)` +
+        (skippedEmpty ? `, bỏ qua ${skippedEmpty} dòng thiếu dữ liệu` : '') +
+        (removedDuplicates ? `, loại bỏ ${removedDuplicates} từ trùng` : '') + '.';
+    } catch (err) {
+      statusEl.innerText = '';
+      alert('Không đọc được file. Hãy kiểm tra lại định dạng Excel/CSV.');
+      return;
+    }
+
+    // Những bản ghi bị dedupeWords() loại bỏ sẽ không còn trong mảng words —
+    // chỉ làm giàu cho các từ thực sự còn tồn tại sau khi gộp trùng.
+    const stillImportedIds = new Set(imported.map(w => w.id));
+    const stillImported = words.filter(w => stillImportedIds.has(w.id));
+    if (stillImported.length > 0) {
+      await autoEnrichWords(stillImported, statusEl, '✅ Nhập xong');
+    } else {
+      setTimeout(() => { statusEl.innerText = ''; }, 6000);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ============== TỰ ĐỘNG LẤY PHIÊN ÂM, TỪ LOẠI, VÍ DỤ & AUDIO TỪ DICTIONARY API ============== */
+async function fetchPronunciationData(word) {
+  if (!word || navigator.onLine === false) return null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.split('(')[0].trim())}`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const entry = Array.isArray(data) ? data[0] : null;
+    if (!entry) return null;
+
+    const phoneticObj = (entry.phonetics || []).find(p => p.text && p.audio) || (entry.phonetics || []).find(p => p.text);
+    const audioObj = (entry.phonetics || []).find(p => p.audio);
+    const meaningObj = (entry.meanings || [])[0];
+    const defWithExample = meaningObj?.definitions?.find(d => d.example) || meaningObj?.definitions?.[0];
+
+    return {
+      phonetic: phoneticObj?.text || entry.phonetic || '',
+      audioUrl: audioObj?.audio ? (audioObj.audio.startsWith('http') ? audioObj.audio : `https:${audioObj.audio}`) : null,
+      pos: meaningObj?.partOfSpeech || '',
+      example: defWithExample?.example || ''
+    };
+  } catch (_) {
+    return null; // Hết thời gian chờ, mất mạng, hoặc không tìm thấy từ → bỏ qua, dùng Web Speech khi đọc.
+  }
+}
+
+// Bổ sung IPA, từ loại, ví dụ, audio cho một danh sách từ (chỉ điền vào ô đang trống), có cập nhật trạng thái trên giao diện.
+async function autoEnrichWords(targetWords, statusEl, doneLabel = '✅ Hoàn tất') {
+  let done = 0, success = 0;
+  for (const w of targetWords) {
+    if (statusEl) statusEl.innerText = `📡 Đang tự động bổ sung ${done + 1}/${targetWords.length}: ${w.word}...`;
+    const fetched = await fetchPronunciationData(w.word);
+    if (fetched) {
+      if (!w.phone && fetched.phonetic) w.phone = fetched.phonetic;
+      if (!w.audioUrl && fetched.audioUrl) w.audioUrl = fetched.audioUrl;
+      if (!w.pos && fetched.pos) w.pos = fetched.pos;
+      if (!w.eg && fetched.example) w.eg = fetched.example;
+      success++;
+    }
+    done++;
+    saveStorage();
+    renderDictList();
+    renderCard();
+    await new Promise(r => setTimeout(r, 120)); // tránh gửi quá dồn dập tới API miễn phí
+  }
+  if (statusEl) {
+    statusEl.innerText = `${doneLabel}: tự động bổ sung được ${success}/${targetWords.length} từ.`;
+    setTimeout(() => { statusEl.innerText = ''; }, 6000);
+  }
+  return { done, success };
+}
+
+async function bulkFetchPronunciation() {
+  if (navigator.onLine === false) {
+    alert('Bạn đang ngoại tuyến. Hãy kết nối mạng để tự động lấy phiên âm & audio.');
+    return;
+  }
+  const targets = words.filter(w => !w.phone || !w.audioUrl || !w.pos || !w.eg);
+  if (targets.length === 0) {
+    document.getElementById('importStatus').innerText = 'Mọi từ đều đã đầy đủ thông tin.';
+    return;
+  }
+  if (!confirm(`Tự động bổ sung IPA/từ loại/ví dụ/audio cho ${targets.length} từ còn thiếu? Quá trình có thể mất vài phút.`)) return;
+
+  await autoEnrichWords(targets, document.getElementById('importStatus'));
+}
+
+function getVisibleDictWords() {
+  const query = normalizeKey(document.getElementById('dictSearch')?.value || '');
+  if (!query) return words;
+  return words.filter(w =>
+    normalizeKey(w.word).includes(query) ||
+    normalizeKey(w.mean).includes(query) ||
+    normalizeKey(w.topic).includes(query)
+  );
+}
+
 function renderDictList() {
   const container = document.getElementById('dictList');
   document.getElementById('dictCount').innerText = words.length;
-  
-  if (words.length === 0) {
-    container.innerHTML = `<p style="color:var(--sub); text-align:center;">Kho dữ liệu trống.</p>`;
+  updateBulkDeleteButton();
+
+  const visibleWords = getVisibleDictWords();
+
+  if (visibleWords.length === 0) {
+    container.innerHTML = `<p style="color:var(--sub); text-align:center;">${words.length === 0 ? 'Kho dữ liệu trống.' : 'Không tìm thấy từ phù hợp.'}</p>`;
     return;
   }
 
   let html = '';
   const grouped = new Map();
-  words.forEach(w => {
+  visibleWords.forEach(w => {
     const topic = w.topic || 'Chủ đề khác';
     if (!grouped.has(topic)) grouped.set(topic, []);
     grouped.get(topic).push(w);
@@ -1464,13 +2010,18 @@ function renderDictList() {
     .forEach(([topic, topicWords]) => {
       html += `<div class="topic-section-title">${topic} · ${topicWords.length} từ</div>`;
       topicWords.forEach(w => {
+        const checked = selectedWordIds.has(w.id) ? 'checked' : '';
         html += `
           <div class="word-item">
+            <input type="checkbox" class="word-item-check" ${checked} onchange="toggleWordSelection('${w.id}', this.checked)">
             <div class="word-item-info">
-              <h4>${w.word} <span style="font-size:12px; font-weight:normal; color:var(--accent2);">${w.pos}</span></h4>
-              <p>${w.mean}</p>
+              <h4>${w.word} <span style="font-size:12px; font-weight:normal; color:var(--accent2);">${w.pos || ''}</span></h4>
+              <p>${w.mean || ''}</p>
             </div>
-            <button class="btn-delete" onclick="deleteWord('${w.id}')">Xoá</button>
+            <div class="word-item-actions">
+              <button class="btn-edit" onclick="editWord('${w.id}')">Sửa</button>
+              <button class="btn-delete" onclick="deleteWord('${w.id}')">Xoá</button>
+            </div>
           </div>
         `;
       });
