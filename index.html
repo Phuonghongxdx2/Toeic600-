@@ -489,6 +489,54 @@
 
   /* SRS visual enhancements */
   .srs-due-glow { box-shadow: 0 0 0 3px rgba(255,180,84,0.35) !important; }
+
+  /* ---- Dictation mode ---- */
+  .quiz-dictation-player {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 20px; padding: 20px 16px;
+  }
+  .quiz-dictation-btn {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--accent2); color: #fff;
+    border: none; border-radius: 16px;
+    padding: 14px 28px; font-size: 16px; font-weight: 800;
+    cursor: pointer; transition: transform 0.12s, opacity 0.12s;
+    min-width: 160px; justify-content: center;
+  }
+  .quiz-dictation-btn:active { transform: scale(0.95); }
+  .quiz-dictation-btn.playing { background: var(--accent); animation: dictPulse 0.8s ease-in-out infinite alternate; }
+  @keyframes dictPulse { to { box-shadow: 0 0 0 8px rgba(255,180,84,0.2); } }
+  .quiz-dictation-hint {
+    font-size: 12px; color: var(--sub); text-align: center; line-height: 1.5;
+  }
+  .quiz-dictation-replay {
+    background: none; border: 1px solid var(--border); color: var(--sub);
+    border-radius: 10px; padding: 6px 14px; font-size: 12px; font-weight: 700;
+    cursor: pointer; display: none;
+  }
+  .quiz-dictation-replay.show { display: inline-block; }
+
+  /* ---- Fill-blank mode ---- */
+  .quiz-fillblank-sentence {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 18px; padding: 18px 20px;
+    font-size: 17px; line-height: 1.7; color: var(--text);
+    text-align: center; letter-spacing: 0.1px;
+  }
+  .quiz-fillblank-blank {
+    display: inline-block;
+    min-width: 90px; border-bottom: 3px solid var(--accent2);
+    color: var(--accent2); font-weight: 800; font-style: normal;
+    padding: 0 6px; margin: 0 2px; text-align: center;
+    font-size: 18px; vertical-align: bottom;
+  }
+  .quiz-fillblank-blank.revealed { color: var(--green); border-color: var(--green); }
+  .quiz-fillblank-blank.wrong-reveal { color: var(--red); border-color: var(--red); }
+  .quiz-fillblank-meta {
+    font-size: 12px; color: var(--sub); text-align: center;
+    margin-top: 8px; font-style: italic;
+  }
 </style>
 </head>
 <body>
@@ -606,7 +654,7 @@
           </div>
         </div>
         <p class="section-label">Dạng câu hỏi</p>
-        <div class="quiz-setup-grid" id="quizTypeGrid">
+        <div class="quiz-setup-grid" id="quizTypeGrid" style="grid-template-columns:1fr 1fr;">
           <div class="quiz-setup-card selected" data-type="mc" onclick="selectQuizType('mc')">
             <span class="qs-icon">🔤</span>
             <div class="qs-label">Trắc nghiệm</div>
@@ -614,8 +662,18 @@
           </div>
           <div class="quiz-setup-card" data-type="input" onclick="selectQuizType('input')">
             <span class="qs-icon">⌨️</span>
-            <div class="qs-label">Điền vào ô</div>
-            <div class="qs-desc">Tự gõ câu trả lời</div>
+            <div class="qs-label">Gõ câu trả lời</div>
+            <div class="qs-desc">Tự gõ nghĩa hoặc từ</div>
+          </div>
+          <div class="quiz-setup-card" data-type="dictation" onclick="selectQuizType('dictation')">
+            <span class="qs-icon">🎧</span>
+            <div class="qs-label">Nghe & Gõ từ</div>
+            <div class="qs-desc">Nghe phát âm, gõ từ tiếng Anh</div>
+          </div>
+          <div class="quiz-setup-card" data-type="fillblank" onclick="selectQuizType('fillblank')">
+            <span class="qs-icon">📝</span>
+            <div class="qs-label">Điền vào câu</div>
+            <div class="qs-desc">Điền từ còn thiếu vào câu ví dụ</div>
           </div>
         </div>
         <p class="section-label">Chủ đề</p>
@@ -666,6 +724,31 @@
       <div class="quiz-input-wrap" id="quizInputWrap" style="display:none;">
         <input type="text" class="quiz-input" id="quizInput" placeholder="Gõ câu trả lời..." autocomplete="off" autocorrect="off" spellcheck="false">
         <button class="quiz-submit-btn" onclick="submitQuizInput()">↩</button>
+      </div>
+
+      <!-- Dictation mode -->
+      <div id="quizDictationWrap" style="display:none;">
+        <div class="quiz-dictation-player">
+          <button class="quiz-dictation-btn" id="quizDictationPlayBtn" onclick="playDictationAudio()">
+            <span id="quizDictationBtnIcon">🔊</span>
+            <span id="quizDictationBtnText">Nghe từ</span>
+          </button>
+          <div class="quiz-dictation-hint" id="quizDictationHint"></div>
+        </div>
+        <div class="quiz-input-wrap" style="margin-top:10px;">
+          <input type="text" class="quiz-input" id="quizDictationInput" placeholder="Gõ từ tiếng Anh vừa nghe..." autocomplete="off" autocorrect="off" spellcheck="false">
+          <button class="quiz-submit-btn" onclick="submitDictationInput()">↩</button>
+        </div>
+      </div>
+
+      <!-- Fill-blank mode -->
+      <div id="quizFillBlankWrap" style="display:none;">
+        <div class="quiz-fillblank-sentence" id="quizFillBlankSentence"></div>
+        <div class="quiz-fillblank-meta" id="quizFillBlankMeta"></div>
+        <div class="quiz-input-wrap" style="margin-top:10px;">
+          <input type="text" class="quiz-input" id="quizFillBlankInput" placeholder="Điền từ còn thiếu..." autocomplete="off" autocorrect="off" spellcheck="false">
+          <button class="quiz-submit-btn" onclick="submitFillBlankInput()">↩</button>
+        </div>
       </div>
 
       <div class="quiz-feedback" id="quizFeedback">
@@ -2475,8 +2558,18 @@ function startQuiz() {
   }
   closeModal('quizSetupModal');
   quizLastConfig = { dir: quizDir, type: quizType, topic: topicFilter, count: quizWordCount };
-  const capped = Math.min(quizWordCount, 10, pool.length);
-  quizQueue = shuffleArray(pool).slice(0, capped);
+  // For fill-blank, only use words that have an example sentence
+  let eligiblePool = pool;
+  if (quizType === 'fillblank') {
+    eligiblePool = pool.filter(w => w.eg && w.eg.trim().length > 0);
+    if (eligiblePool.length < 2) {
+      alert('Cần ít nhất 2 từ có câu ví dụ trong nhóm này để bắt đầu chế độ Điền vào câu.\nHãy chọn nhóm từ lớn hơn hoặc dùng chức năng "Lấy phiên âm tự động" để bổ sung câu ví dụ.');
+      openModal('quizSetupModal');
+      return;
+    }
+  }
+  const capped = Math.min(quizWordCount, 10, eligiblePool.length);
+  quizQueue = shuffleArray(eligiblePool).slice(0, capped);
   quizErrorPool = [];
   quizSessionDone = [];
   quizQueueIndex = 0;
@@ -2559,6 +2652,10 @@ function renderQuizQuestion() {
   quizCurrentItem = next;
   quizTotalShown++;
 
+  // Reset prompt card visibility (modes may have hidden elements)
+  document.getElementById('quizPromptWord').style.display = '';
+  document.getElementById('quizPromptHint').style.display = '';
+
   const w = next.word;
   const total = quizQueue.length;
   const done = Math.min(quizQueueIndex, total);
@@ -2603,13 +2700,24 @@ function renderQuizQuestion() {
   // Render question type
   if (quizType === 'mc') {
     renderMCQuestion(w);
-  } else {
+  } else if (quizType === 'input') {
     renderInputQuestion(w);
+  } else if (quizType === 'dictation') {
+    renderDictationQuestion(w);
+  } else if (quizType === 'fillblank') {
+    renderFillBlankQuestion(w);
   }
 }
 
-function renderMCQuestion(correctWord) {
+function hideAllQuizAnswerAreas() {
+  document.getElementById('quizChoices').style.display = 'none';
   document.getElementById('quizInputWrap').style.display = 'none';
+  document.getElementById('quizDictationWrap').style.display = 'none';
+  document.getElementById('quizFillBlankWrap').style.display = 'none';
+}
+
+function renderMCQuestion(correctWord) {
+  hideAllQuizAnswerAreas();
   const choicesEl = document.getElementById('quizChoices');
   choicesEl.style.display = 'flex';
 
@@ -2632,7 +2740,7 @@ function renderMCQuestion(correctWord) {
 }
 
 function renderInputQuestion(correctWord) {
-  document.getElementById('quizChoices').style.display = 'none';
+  hideAllQuizAnswerAreas();
   const inputWrap = document.getElementById('quizInputWrap');
   inputWrap.style.display = 'block';
   const inp = document.getElementById('quizInput');
@@ -2642,6 +2750,232 @@ function renderInputQuestion(correctWord) {
   inp.placeholder = quizDir === 'vi-en' ? 'Gõ từ tiếng Anh...' : 'Gõ nghĩa tiếng Việt...';
   setTimeout(() => inp.focus(), 100);
   inp.onkeydown = e => { if (e.key === 'Enter') submitQuizInput(); };
+}
+
+/* ---- DICTATION MODE ---- */
+let dictationCurrentWord = null;
+let dictationPlayCount = 0;
+
+function renderDictationQuestion(correctWord) {
+  hideAllQuizAnswerAreas();
+  dictationCurrentWord = correctWord;
+  dictationPlayCount = 0;
+
+  document.getElementById('quizDictationWrap').style.display = 'block';
+
+  // Update prompt card — hide word, show only topic + instruction
+  document.getElementById('quizPromptWord').style.display = 'none';
+  document.getElementById('quizPromptHint').style.display = 'none';
+  document.getElementById('quizPromptLabel').innerText = 'Nghe phát âm và gõ lại từ tiếng Anh:';
+  document.getElementById('quizModeBadge').innerText = '🎧 Dictation';
+
+  // Reset dictation UI
+  const btn = document.getElementById('quizDictationPlayBtn');
+  btn.className = 'quiz-dictation-btn';
+  document.getElementById('quizDictationBtnIcon').innerText = '🔊';
+  document.getElementById('quizDictationBtnText').innerText = 'Nghe từ';
+  document.getElementById('quizDictationHint').innerText = 'Nhấn để nghe, sau đó gõ từ bạn nghe được';
+
+  const inp = document.getElementById('quizDictationInput');
+  inp.value = '';
+  inp.className = 'quiz-input';
+  inp.disabled = false;
+  inp.placeholder = 'Gõ từ tiếng Anh vừa nghe...';
+  inp.onkeydown = e => { if (e.key === 'Enter') submitDictationInput(); };
+
+  // Auto-play on first render
+  setTimeout(() => playDictationAudio(), 400);
+}
+
+function playDictationAudio() {
+  if (!dictationCurrentWord) return;
+  const w = dictationCurrentWord;
+  const btn = document.getElementById('quizDictationPlayBtn');
+  btn.className = 'quiz-dictation-btn playing';
+  document.getElementById('quizDictationBtnIcon').innerText = '🔉';
+  document.getElementById('quizDictationBtnText').innerText = 'Đang phát...';
+
+  dictationPlayCount++;
+  const wordText = w.word.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+
+  const onDone = () => {
+    btn.className = 'quiz-dictation-btn';
+    document.getElementById('quizDictationBtnIcon').innerText = '🔊';
+    document.getElementById('quizDictationBtnText').innerText = 'Nghe lại';
+    const hint = dictationPlayCount === 1
+      ? 'Nghe lại nếu chưa rõ, sau đó gõ từ vào ô dưới'
+      : `Đã nghe ${dictationPlayCount} lần${dictationPlayCount >= 3 ? ' · Gợi ý: ' + w.phone : ''}`;
+    document.getElementById('quizDictationHint').innerText = hint;
+    setTimeout(() => document.getElementById('quizDictationInput').focus(), 100);
+  };
+
+  const embeddedSrc = typeof EMBEDDED_AUDIO !== 'undefined' ? EMBEDDED_AUDIO[w.word.toLowerCase()] : null;
+  const remoteSrc = w.audioUrl;
+  const audioSrc = embeddedSrc || (remoteSrc && navigator.onLine !== false ? remoteSrc : null);
+
+  if (audioSrc) {
+    playPronunciationAudio(audioSrc, null, () => speakForDictation(wordText, onDone));
+    // We don't get an onDone callback from playPronunciationAudio easily, so estimate
+    const estDuration = Math.max(800, wordText.length * 120);
+    setTimeout(onDone, estDuration);
+  } else {
+    speakForDictation(wordText, onDone);
+  }
+}
+
+function speakForDictation(wordText, onDone) {
+  if (!('speechSynthesis' in window)) { onDone(); return; }
+  const synth = window.speechSynthesis;
+  const utter = new SpeechSynthesisUtterance(wordText);
+  utter.lang = 'en-US';
+  utter.rate = 0.75; // slower for dictation
+  utter.pitch = 1;
+  utter.volume = 1;
+  const voices = (typeof loadEnglishVoices === 'function') ? loadEnglishVoices() : [];
+  utter.voice = voices.find(v => /natural|online|zira|aria|samantha|google us english/i.test(v.name))
+    || voices.find(v => /^en-US/i.test(v.lang)) || voices[0] || null;
+  utter.onend = onDone;
+  utter.onerror = onDone;
+  synth.cancel();
+  synth.resume();
+  synth.speak(utter);
+}
+
+function submitDictationInput() {
+  const inp = document.getElementById('quizDictationInput');
+  const userVal = inp.value;
+  if (!userVal.trim() || !dictationCurrentWord) return;
+  inp.disabled = true;
+
+  const w = dictationCurrentWord;
+  const correctRaw = w.word;
+  const correctParts = correctRaw.split(/[,/]/).map(normalizeAnswer);
+  const userNorm = normalizeAnswer(userVal);
+  const isCorrect = correctParts.some(c => c === userNorm);
+
+  inp.className = 'quiz-input ' + (isCorrect ? 'correct' : 'wrong');
+
+  // Show the word in prompt after answering
+  document.getElementById('quizPromptWord').style.display = '';
+  document.getElementById('quizPromptWord').innerText = w.word;
+  document.getElementById('quizPromptHint').style.display = '';
+  document.getElementById('quizPromptHint').innerText = w.phone || '';
+
+  showQuizFeedback(isCorrect, w);
+  recordAnswer(isCorrect);
+}
+
+/* ---- FILL-BLANK MODE ---- */
+let fillBlankCurrentWord = null;
+let fillBlankAnswer = '';
+
+function wordsWithExample() {
+  return words.filter(w => w.eg && w.eg.trim().length > 0);
+}
+
+function renderFillBlankQuestion(correctWord) {
+  hideAllQuizAnswerAreas();
+  document.getElementById('quizFillBlankWrap').style.display = 'block';
+
+  // If the word has no example, skip to next word automatically
+  if (!correctWord.eg || !correctWord.eg.trim()) {
+    // Try to find a different word from the queue that has an example
+    const fallback = quizQueue.find(w => w.eg && w.eg.trim() && w.id !== correctWord.id);
+    if (fallback) {
+      // Replace in queue
+      const idx = quizQueue.indexOf(correctWord);
+      quizQueue[idx] = fallback;
+      quizQueue[quizQueue.indexOf(fallback)] = correctWord;
+      renderFillBlankQuestion(fallback);
+      return;
+    }
+    // No examples at all — show a notice and treat as wrong skip
+    document.getElementById('quizFillBlankSentence').innerHTML =
+      '<span style="color:var(--sub);font-size:14px;">Từ này chưa có câu ví dụ.</span>';
+    document.getElementById('quizFillBlankMeta').innerText = '';
+    document.getElementById('quizPromptWord').style.display = 'none';
+    document.getElementById('quizPromptHint').innerText = '';
+    document.getElementById('quizModeBadge').innerText = '📝 Fill-blank';
+    document.getElementById('quizFillBlankInput').style.display = 'none';
+    document.querySelector('#quizFillBlankWrap .quiz-submit-btn').style.display = 'none';
+    showQuizFeedback(false, correctWord);
+    recordAnswer(false);
+    return;
+  }
+
+  fillBlankCurrentWord = correctWord;
+
+  // Find the word (case-insensitive) in the example and replace with blank
+  const eg = correctWord.eg;
+  const wordBase = correctWord.word.replace(/\s*\([^)]*\)/g, '').trim();
+  // Match the word (or its common forms) in the sentence
+  const escaped = wordBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`\\b(${escaped})\\b`, 'i');
+  const match = eg.match(regex);
+  fillBlankAnswer = match ? match[1] : wordBase;
+
+  let sentenceHtml;
+  if (match) {
+    sentenceHtml = eg.replace(regex, `<span class="quiz-fillblank-blank" id="fbBlank">___</span>`);
+  } else {
+    // Word not literally in example (phrasal/compound) — blank the first word match
+    sentenceHtml = eg + ` <span class="quiz-fillblank-blank" id="fbBlank">___</span>`;
+  }
+
+  // Update prompt card
+  document.getElementById('quizModeBadge').innerText = '📝 Fill-blank';
+  document.getElementById('quizPromptLabel').innerText = 'Điền từ còn thiếu vào câu ví dụ:';
+  document.getElementById('quizPromptWord').style.display = 'none';
+  document.getElementById('quizPromptHint').style.display = 'none';
+  document.getElementById('quizTopicChip').innerText = correctWord.topic;
+
+  document.getElementById('quizFillBlankSentence').innerHTML = sentenceHtml;
+  document.getElementById('quizFillBlankMeta').innerText =
+    `${correctWord.mean}${correctWord.pos ? ' · ' + correctWord.pos : ''}`;
+
+  const inp = document.getElementById('quizFillBlankInput');
+  inp.style.display = '';
+  inp.value = '';
+  inp.className = 'quiz-input';
+  inp.disabled = false;
+  inp.placeholder = 'Điền từ tiếng Anh...';
+  inp.onkeydown = e => { if (e.key === 'Enter') submitFillBlankInput(); };
+
+  const submitBtn = document.querySelector('#quizFillBlankWrap .quiz-submit-btn');
+  if (submitBtn) submitBtn.style.display = '';
+
+  setTimeout(() => inp.focus(), 100);
+}
+
+function submitFillBlankInput() {
+  const inp = document.getElementById('quizFillBlankInput');
+  const userVal = inp.value;
+  if (!userVal.trim() || !fillBlankCurrentWord) return;
+  inp.disabled = true;
+
+  const w = fillBlankCurrentWord;
+  const correctParts = [fillBlankAnswer, w.word.replace(/\s*\([^)]*\)/g,'').trim()]
+    .map(normalizeAnswer).filter(Boolean);
+  const userNorm = normalizeAnswer(userVal);
+  const isCorrect = correctParts.some(c => c === userNorm);
+
+  inp.className = 'quiz-input ' + (isCorrect ? 'correct' : 'wrong');
+
+  // Reveal the blank in the sentence
+  const blankEl = document.getElementById('fbBlank');
+  if (blankEl) {
+    blankEl.innerText = fillBlankAnswer;
+    blankEl.className = 'quiz-fillblank-blank ' + (isCorrect ? 'revealed' : 'wrong-reveal');
+  }
+
+  // Show the word in prompt
+  document.getElementById('quizPromptWord').style.display = '';
+  document.getElementById('quizPromptWord').innerText = w.word;
+  document.getElementById('quizPromptHint').style.display = '';
+  document.getElementById('quizPromptHint').innerText = w.phone || '';
+
+  showQuizFeedback(isCorrect, w);
+  recordAnswer(isCorrect);
 }
 
 function normalizeAnswer(s) {
