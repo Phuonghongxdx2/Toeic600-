@@ -128,19 +128,24 @@
   .card-box {
     width: 100%; max-width: 400px; height: 100%; max-height: 420px;
     position: relative; transform-style: preserve-3d;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
     cursor: grab; touch-action: pan-y; user-select: none;
+    will-change: transform;
   }
+  .card-box.dragging { transition: none; }
   .card-box:active { cursor: grabbing; }
   .card-box.flipped { transform: rotateY(180deg); }
-  .card-box.swipe-left { animation: swipeLeft 0.24s ease-in forwards; }
-  .card-box.swipe-right { animation: swipeRight 0.24s ease-in forwards; }
-  @keyframes swipeLeft {
-    to { transform: translateX(-115%) rotate(-7deg); opacity: 0; }
+  .card-box.flipped.dragging { transition: none; }
+
+  /* Lớp phủ gợi ý hướng vuốt (mượt, theo thời gian thực) */
+  .swipe-indicator {
+    position: absolute; top: 18px; padding: 6px 14px; border-radius: 10px;
+    font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    border: 2px solid; opacity: 0; pointer-events: none; z-index: 5;
+    transition: opacity 0.15s ease;
   }
-  @keyframes swipeRight {
-    to { transform: translateX(115%) rotate(7deg); opacity: 0; }
-  }
+  .swipe-indicator.prev { left: 18px; color: var(--blue); border-color: var(--blue); transform: rotate(-8deg); }
+  .swipe-indicator.next { right: 18px; color: var(--accent2); border-color: var(--accent2); transform: rotate(8deg); }
   
   .card-side {
     position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
@@ -283,7 +288,10 @@
 
   <div class="main">
     <div class="card-box" id="card" onclick="handleCardClick(event)"
-         onpointerdown="startCardSwipe(event)" onpointerup="endCardSwipe(event)" onpointercancel="cancelCardSwipe()">
+         onpointerdown="startCardSwipe(event)" onpointermove="moveCardSwipe(event)"
+         onpointerup="endCardSwipe(event)" onpointercancel="cancelCardSwipe()">
+      <div class="swipe-indicator prev" id="swipePrevHint">← Trước</div>
+      <div class="swipe-indicator next" id="swipeNextHint">Tiếp →</div>
       <!-- Mặt trước thẻ -->
       <div class="card-side card-front">
         <div class="tagrow">
@@ -1065,10 +1073,20 @@ function updateGlobalStats() {
   document.getElementById('progressFill').style.width = `${percent}%`;
 }
 
+/* ============== HỆ THỐNG VUỐT THẺ MƯỢT (THEO THỜI GIAN THỰC) ============== */
 let swipeStartX = 0;
 let swipeStartY = 0;
 let swipePointerId = null;
 let suppressCardClick = false;
+let isDragging = false;
+let isFlippedAtDragStart = false;
+let lastMoveX = 0;
+let lastMoveT = 0;
+let swipeVelocity = 0;
+const SWIPE_DISTANCE_THRESHOLD = 90;   // px tối thiểu để xem là vuốt thành công
+const SWIPE_VELOCITY_THRESHOLD = 0.55; // px/ms — vuốt nhanh (vẩy tay) cũng được tính
+
+function getCardEl() { return document.getElementById('card'); }
 
 function handleCardClick() {
   if (suppressCardClick) {
@@ -1080,35 +1098,107 @@ function handleCardClick() {
 
 function startCardSwipe(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
+  const card = getCardEl();
   swipeStartX = event.clientX;
   swipeStartY = event.clientY;
+  lastMoveX = event.clientX;
+  lastMoveT = event.timeStamp;
+  swipeVelocity = 0;
   swipePointerId = event.pointerId;
-  event.currentTarget.setPointerCapture?.(event.pointerId);
+  isDragging = false;
+  isFlippedAtDragStart = card.classList.contains('flipped');
+  card.setPointerCapture?.(event.pointerId);
+}
+
+function moveCardSwipe(event) {
+  if (swipePointerId !== event.pointerId) return;
+  const card = getCardEl();
+  const deltaX = event.clientX - swipeStartX;
+  const deltaY = event.clientY - swipeStartY;
+
+  // Chỉ bắt đầu kéo khi xác định rõ là cử chỉ ngang (tránh cản cuộn dọc).
+  if (!isDragging) {
+    if (Math.abs(deltaX) < 8 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    isDragging = true;
+    card.classList.add('dragging');
+  }
+
+  // Tính vận tốc tức thời để nhận diện cú vẩy tay nhanh.
+  const dt = Math.max(1, event.timeStamp - lastMoveT);
+  swipeVelocity = (event.clientX - lastMoveX) / dt;
+  lastMoveX = event.clientX;
+  lastMoveT = event.timeStamp;
+
+  // Hiệu ứng đàn hồi nhẹ khi kéo quá xa, theo dõi ngón tay tự nhiên hơn.
+  const rubberDeltaX = deltaX * (1 - Math.min(Math.abs(deltaX) / 900, 0.35));
+  const rotate = Math.max(-14, Math.min(14, rubberDeltaX / 14));
+  const liftY = Math.min(Math.abs(deltaX) * 0.04, 14);
+  const baseRotateY = isFlippedAtDragStart ? 180 : 0;
+
+  card.style.transform =
+    `translate3d(${rubberDeltaX}px, ${-liftY}px, 0) rotate(${rotate}deg) rotateY(${baseRotateY}deg)`;
+
+  // Gợi ý hướng hiện dần theo khoảng cách kéo.
+  const progress = Math.min(Math.abs(rubberDeltaX) / SWIPE_DISTANCE_THRESHOLD, 1);
+  document.getElementById('swipeNextHint').style.opacity = rubberDeltaX < 0 ? progress : 0;
+  document.getElementById('swipePrevHint').style.opacity = rubberDeltaX > 0 ? progress : 0;
+}
+
+function resetSwipeHints() {
+  document.getElementById('swipeNextHint').style.opacity = 0;
+  document.getElementById('swipePrevHint').style.opacity = 0;
 }
 
 function endCardSwipe(event) {
   if (swipePointerId !== event.pointerId) return;
+  const card = getCardEl();
   const deltaX = event.clientX - swipeStartX;
   const deltaY = event.clientY - swipeStartY;
   swipePointerId = null;
 
-  // Chỉ nhận vuốt ngang rõ ràng để không cản thao tác cuộn trang.
-  if (Math.abs(deltaX) < 55 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+  if (!isDragging) return;
+  isDragging = false;
+  card.classList.remove('dragging');
+  resetSwipeHints();
+
+  const isFastFlick = Math.abs(swipeVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > 24;
+  const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY);
+
+  if (!isFastFlick && !isFarEnough) {
+    // Kéo không đủ xa → đàn hồi mượt trở lại vị trí gốc.
+    card.style.transform = '';
+    return;
+  }
 
   suppressCardClick = true;
-  const card = document.getElementById('card');
-  const directionClass = deltaX < 0 ? 'swipe-left' : 'swipe-right';
-  const step = deltaX < 0 ? 1 : -1;
-  card.classList.add(directionClass);
+  const direction = deltaX < 0 ? -1 : 1; // -1: sang trái (tiếp theo), 1: sang phải (trước đó)
+  const step = direction < 0 ? 1 : -1;
+  const baseRotateY = isFlippedAtDragStart ? 180 : 0;
+  const flyX = direction < 0 ? -window.innerWidth : window.innerWidth;
+  const flyRotate = direction < 0 ? -18 : 18;
+
+  // Bay ra mượt mà bằng transition CSS thật (không dùng keyframes cứng).
+  card.style.transition = 'transform 0.32s cubic-bezier(0.36, 0, 0.66, -0.05), opacity 0.32s ease';
+  card.style.transform = `translate3d(${flyX}px, -10px, 0) rotate(${flyRotate}deg) rotateY(${baseRotateY}deg)`;
+  card.style.opacity = '0';
 
   setTimeout(() => {
-    card.classList.remove(directionClass);
+    card.style.transition = '';
+    card.style.transform = '';
+    card.style.opacity = '';
     stepCard(step);
-  }, 230);
-  setTimeout(() => { suppressCardClick = false; }, 450);
+    suppressCardClick = false;
+  }, 320);
 }
 
 function cancelCardSwipe() {
+  if (isDragging) {
+    const card = getCardEl();
+    card.classList.remove('dragging');
+    card.style.transform = '';
+    resetSwipeHints();
+    isDragging = false;
+  }
   swipePointerId = null;
 }
 
@@ -1126,7 +1216,7 @@ function stepCard(step) {
 function handleSrm(remembered) {
   const currentList = getFilteredWords();
   if (currentList.length === 0) return;
-  
+
   const item = currentList[currentIndex];
   const now = Date.now();
   item.reviewCount = (item.reviewCount || 0) + 1;
@@ -1161,6 +1251,70 @@ const EMBEDDED_AUDIO = {};
 let embeddedAudioPlayer = null;
 let englishVoices = [];
 
+/* ============== XỬ LÝ ÂM THANH PHÁT ÂM BẰNG WEB AUDIO API ==============
+   Đưa âm thanh nhúng đi qua một chuỗi xử lý (lọc, EQ, nén động) để giọng
+   đọc nghe rõ, sạch và "dày" hơn thay vì phát thẳng qua thẻ <audio>. */
+let pronunciationAudioCtx = null;
+function getPronunciationAudioCtx() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  if (!pronunciationAudioCtx) pronunciationAudioCtx = new Ctx();
+  if (pronunciationAudioCtx.state === 'suspended') pronunciationAudioCtx.resume();
+  return pronunciationAudioCtx;
+}
+
+// Nối <audio> nhúng qua chuỗi: lọc rì rầm thấp → tăng độ rõ tiếng nói
+// → nén động (loudness đều) → giới hạn an toàn → loa.
+function enhancePronunciationAudio(audioEl) {
+  const ctx = getPronunciationAudioCtx();
+  if (!ctx) return; // Trình duyệt không hỗ trợ Web Audio API → phát thẳng như cũ.
+
+  try {
+    const source = ctx.createMediaElementSource(audioEl);
+
+    const rumbleCut = ctx.createBiquadFilter();
+    rumbleCut.type = 'highpass';
+    rumbleCut.frequency.value = 90;
+    rumbleCut.Q.value = 0.7;
+
+    const clarityBoost = ctx.createBiquadFilter();
+    clarityBoost.type = 'peaking';
+    clarityBoost.frequency.value = 3000;   // dải âm phụ âm tiếng Anh, giúp nghe rõ chữ
+    clarityBoost.Q.value = 1.1;
+    clarityBoost.gain.value = 5;
+
+    const warmthBoost = ctx.createBiquadFilter();
+    warmthBoost.type = 'lowshelf';
+    warmthBoost.frequency.value = 220;
+    warmthBoost.gain.value = 2;            // thêm chút ấm, đỡ mỏng tiếng
+
+    const hissCut = ctx.createBiquadFilter();
+    hissCut.type = 'lowpass';
+    hissCut.frequency.value = 9500;        // cắt rè the gắt ở tần số rất cao
+
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -24;
+    compressor.knee.value = 24;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.18;
+
+    const outputGain = ctx.createGain();
+    outputGain.gain.value = 1.25;          // bù lại độ lớn sau khi nén
+
+    source.connect(rumbleCut)
+      .connect(warmthBoost)
+      .connect(clarityBoost)
+      .connect(hissCut)
+      .connect(compressor)
+      .connect(outputGain)
+      .connect(ctx.destination);
+  } catch (e) {
+    // Một số trình duyệt chỉ cho tạo MediaElementSource một lần / lỗi CORS với nguồn ngoài.
+    // Bỏ qua xử lý nâng cao, âm thanh vẫn phát bình thường qua thẻ <audio>.
+  }
+}
+
 function loadEnglishVoices() {
   if (!('speechSynthesis' in window)) return [];
   const voices = window.speechSynthesis.getVoices() || [];
@@ -1185,6 +1339,8 @@ function speakCurrentWord(event) {
     }
     window.speechSynthesis?.cancel();
     embeddedAudioPlayer = new Audio(embeddedSrc);
+    embeddedAudioPlayer.crossOrigin = 'anonymous';
+    enhancePronunciationAudio(embeddedAudioPlayer);
     embeddedAudioPlayer.onplay = () => audioBtn?.classList.add('speaking');
     embeddedAudioPlayer.onended = () => audioBtn?.classList.remove('speaking');
     embeddedAudioPlayer.onerror = () => {
@@ -1342,6 +1498,9 @@ window.onload = () => {
   renderFilters();
   renderCard();
   checkPwaPrompt();
+
+  // Mở khoá AudioContext xử lý phát âm ngay từ cử chỉ chạm/click đầu tiên (bắt buộc trên iOS Safari).
+  window.addEventListener('pointerdown', () => { getPronunciationAudioCtx(); }, { once: true });
 };
 </script>
 </body>
