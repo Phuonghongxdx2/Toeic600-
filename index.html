@@ -273,6 +273,222 @@
   .pwa-prompt-text { font-size: 13px; line-height: 1.5; color: var(--text); }
   .pwa-prompt-icon { display: inline-block; width: 20px; height: 20px; background: var(--panel); color: var(--text); text-align: center; border-radius: 4px; line-height: 20px; font-weight: bold; border: 1px solid var(--border);}
   .flipped .word { font-size:34px; }
+
+  /* ============== QUIZ MODE STYLES ============== */
+  .quiz-fab {
+    position: fixed; bottom: 80px; right: 20px; z-index: 50;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent2); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .quiz-fab:active { transform: scale(0.92); }
+
+  /* Quiz Setup Modal */
+  .quiz-setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .quiz-setup-card {
+    background: var(--panel-brighter); border: 2px solid var(--border);
+    border-radius: 16px; padding: 14px 10px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .quiz-setup-card.selected { border-color: var(--accent2); background: rgba(95,179,163,0.1); }
+  .quiz-setup-card .qs-icon { font-size: 24px; display: block; margin-bottom: 6px; }
+  .quiz-setup-card .qs-label { font-size: 12px; font-weight: 700; color: var(--text); }
+  .quiz-setup-card .qs-desc { font-size: 10px; color: var(--sub); margin-top: 3px; }
+
+  .quiz-topic-select {
+    width: 100%; background: var(--panel-brighter); color: var(--text);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 11px 14px; font-size: 14px; font-weight: 600; outline: none; margin-bottom: 14px;
+  }
+  .quiz-topic-select:focus { border-color: var(--accent2); }
+  .quiz-word-count-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .quiz-count-btn {
+    flex: 1; padding: 10px 0; border-radius: 12px; border: 2px solid var(--border);
+    background: var(--panel-brighter); color: var(--text); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .quiz-count-btn.selected { border-color: var(--accent2); color: var(--accent2); background: rgba(95,179,163,0.1); }
+
+  /* Quiz Overlay */
+  .quiz-overlay {
+    position: fixed; inset: 0; background: var(--bg); z-index: 200;
+    display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .quiz-overlay.open { transform: translateY(0); }
+
+  .quiz-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .quiz-header h2 { margin: 0; font-size: 18px; font-weight: 800; }
+  .quiz-close-btn { background: none; border: none; color: var(--sub); font-size: 20px; cursor: pointer; padding: 4px 8px; }
+
+  .quiz-progress-wrap { padding: 10px 20px 4px; }
+  .quiz-progress-bar { height: 6px; background: var(--panel-brighter); border-radius: 10px; overflow: hidden; }
+  .quiz-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0%; transition: width 0.4s ease; }
+  .quiz-progress-label { font-size: 11px; color: var(--sub); text-align: right; margin-top: 4px; font-weight: 600; }
+
+  .quiz-body {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 12px 20px 8px; overflow-y: auto; min-height: 0;
+    gap: 10px;
+  }
+
+  .quiz-prompt-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 22px; padding: 20px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  :root[data-theme="dark"] .quiz-prompt-card { box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+  .quiz-mode-badge {
+    display: inline-block; font-size: 10px; font-weight: 800;
+    color: var(--accent2); background: rgba(95,179,163,0.12); 
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .quiz-prompt-label { font-size: 12px; color: var(--sub); margin-bottom: 8px; font-weight: 600; }
+  .quiz-prompt-word { font-size: 32px; font-weight: 800; margin: 0 0 4px; }
+  .quiz-prompt-hint { font-size: 13px; color: var(--sub); font-style: italic; margin-top: 4px; }
+  .quiz-topic-chip {
+    display: inline-block; font-size: 11px; color: var(--accent2);
+    background: rgba(95,179,163,0.1); padding: 3px 10px; border-radius: 8px;
+    font-weight: 700; margin-top: 8px;
+  }
+
+  /* Input area */
+  .quiz-input-wrap { position: relative; }
+  .quiz-input {
+    width: 100%; background: var(--panel); border: 2px solid var(--border);
+    border-radius: 16px; padding: 14px 50px 14px 16px;
+    color: var(--text); font-size: 16px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .quiz-input:focus { border-color: var(--accent2); }
+  .quiz-input.correct { border-color: var(--green); background: rgba(76,175,80,0.06); }
+  .quiz-input.wrong { border-color: var(--red); background: rgba(244,67,54,0.06); }
+  .quiz-submit-btn {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: var(--accent2); color: #fff; border: none; border-radius: 10px;
+    width: 34px; height: 34px; font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Feedback area */
+  .quiz-feedback {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 18px; padding: 16px; display: none;
+    animation: feedbackIn 0.25s ease;
+  }
+  @keyframes feedbackIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.correct-fb { border-color: var(--green); }
+  .quiz-feedback.wrong-fb { border-color: var(--red); }
+  .quiz-feedback-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+  .quiz-feedback.correct-fb .quiz-feedback-title { color: var(--green); }
+  .quiz-feedback.wrong-fb .quiz-feedback-title { color: var(--red); }
+  .quiz-feedback-answer { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .quiz-feedback-eg { font-size: 13px; color: var(--sub); margin-top: 6px; font-style: italic; line-height: 1.5; }
+  .quiz-feedback-phone { font-size: 12px; color: var(--sub); font-family: monospace; margin-top: 4px; }
+
+  /* Error correction queue badge */
+  .quiz-retry-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700; color: var(--red);
+    background: rgba(244,67,54,0.1); padding: 4px 10px; border-radius: 20px;
+  }
+
+  /* MC choices */
+  .quiz-choices { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-choice-btn {
+    width: 100%; background: var(--panel); border: 2px solid var(--border);
+    border-radius: 14px; padding: 12px 16px; text-align: left;
+    color: var(--text); font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; display: flex; align-items: center; gap: 10px;
+  }
+  .quiz-choice-btn:active { transform: scale(0.98); }
+  .quiz-choice-btn.correct-choice { border-color: var(--green); background: rgba(76,175,80,0.08); color: var(--green); }
+  .quiz-choice-btn.wrong-choice { border-color: var(--red); background: rgba(244,67,54,0.08); color: var(--red); }
+  .quiz-choice-btn.reveal-correct { border-color: var(--green); background: rgba(76,175,80,0.05); }
+  .quiz-choice-letter { font-size: 11px; font-weight: 800; color: var(--sub); min-width: 20px; }
+
+  /* Next button */
+  .quiz-next-btn {
+    width: 100%; padding: 15px; border-radius: 16px; border: none;
+    background: var(--accent2); color: #fff; font-size: 16px; font-weight: 800;
+    cursor: pointer; display: none; margin-top: 4px;
+    transition: transform 0.1s, opacity 0.1s;
+  }
+  .quiz-next-btn:active { transform: scale(0.97); }
+  .quiz-next-btn.show { display: block; }
+
+  /* Results screen */
+  .quiz-results {
+    display: none; flex-direction: column; align-items: center;
+    justify-content: center; flex: 1; padding: 20px; text-align: center;
+    gap: 16px;
+  }
+  .quiz-results.show { display: flex; }
+  .quiz-score-ring {
+    width: 120px; height: 120px; border-radius: 50%;
+    border: 6px solid var(--panel-brighter);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .quiz-score-pct { font-size: 30px; font-weight: 900; color: var(--accent); }
+  .quiz-score-label { font-size: 11px; color: var(--sub); font-weight: 700; }
+  .quiz-result-title { font-size: 22px; font-weight: 800; }
+  .quiz-result-breakdown {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; width: 100%;
+  }
+  .qrb-item { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 6px; }
+  .qrb-item strong { display: block; font-size: 22px; margin-bottom: 4px; }
+  .qrb-item span { font-size: 10px; color: var(--sub); font-weight: 700; }
+  .qrb-correct strong { color: var(--green); }
+  .qrb-wrong strong { color: var(--red); }
+  .qrb-retry strong { color: var(--accent); }
+
+  .quiz-result-actions { display: flex; gap: 10px; width: 100%; }
+  .quiz-result-btn {
+    flex: 1; padding: 14px; border-radius: 14px; border: none;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .quiz-result-retry-wrongs {
+    background: rgba(244,67,54,0.1); color: var(--red); border: 1px solid rgba(244,67,54,0.2);
+  }
+  .quiz-result-again { background: var(--accent2); color: #fff; }
+  .quiz-result-home { background: var(--panel-brighter); color: var(--text); border: 1px solid var(--border); }
+
+  /* Stats Modal */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--panel-brighter); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px; text-align: center;
+  }
+  .stat-card strong { display: block; font-size: 24px; color: var(--accent); font-weight: 900; }
+  .stat-card span { font-size: 11px; color: var(--sub); font-weight: 700; }
+  .stat-history-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .stat-history-item:last-child { border-bottom: none; }
+  .stat-history-score { font-weight: 800; color: var(--accent2); }
+  .stat-topic-bar { margin-bottom: 14px; }
+  .stat-topic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .stat-topic-name { font-size: 12px; color: var(--sub); width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat-topic-track { flex: 1; height: 8px; background: var(--panel-brighter); border-radius: 4px; overflow: hidden; }
+  .stat-topic-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width 0.5s ease; }
+  .stat-topic-pct { font-size: 12px; font-weight: 700; color: var(--accent); width: 36px; text-align: right; }
+  .section-label { font-size: 11px; font-weight: 800; color: var(--sub); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+
+  /* SRS visual enhancements */
+  .srs-due-glow { box-shadow: 0 0 0 3px rgba(255,180,84,0.35) !important; }
 </style>
 </head>
 <body>
@@ -283,10 +499,13 @@
       <div class="stats-header" id="statsHeader">Đang tải...</div>
     </div>
     <!-- Bộ điều khiển chế độ Light/Dark/System -->
-    <div class="theme-selector">
-      <button class="theme-btn" id="theme-light" onclick="changeTheme('light')">☀️</button>
-      <button class="theme-btn" id="theme-dark" onclick="changeTheme('dark')">🌙</button>
-      <button class="theme-btn" id="theme-system" onclick="changeTheme('system')">💻</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="theme-btn" style="font-size:18px;padding:6px 8px;border-radius:10px;background:var(--panel-brighter);border:1px solid var(--border);" onclick="openStatsModal()" title="Thống kê">📊</button>
+      <div class="theme-selector">
+        <button class="theme-btn" id="theme-light" onclick="changeTheme('light')">☀️</button>
+        <button class="theme-btn" id="theme-dark" onclick="changeTheme('dark')">🌙</button>
+        <button class="theme-btn" id="theme-system" onclick="changeTheme('system')">💻</button>
+      </div>
     </div>
   </header>
 
@@ -360,6 +579,134 @@
       <button class="navbtn" onclick="stepCard(1)">→</button>
     </div>
     <button class="navbtn" onclick="openModal('addModal')">➕ Thêm từ</button>
+  </div>
+
+  <!-- QUIZ FAB BUTTON -->
+  <button class="quiz-fab" onclick="openQuizSetup()" title="Kiểm tra từ vựng">🧩</button>
+
+  <!-- QUIZ SETUP MODAL -->
+  <div class="modal-overlay" id="quizSetupModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🧩 Chế độ kiểm tra</h3>
+        <button class="close-modal" onclick="closeModal('quizSetupModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="section-label">Chọn hướng kiểm tra</p>
+        <div class="quiz-setup-grid" id="quizDirectionGrid">
+          <div class="quiz-setup-card selected" data-dir="en-vi" onclick="selectQuizDir('en-vi')">
+            <span class="qs-icon">🇬🇧→🇻🇳</span>
+            <div class="qs-label">English → Việt</div>
+            <div class="qs-desc">Nhìn tiếng Anh, gõ/chọn nghĩa</div>
+          </div>
+          <div class="quiz-setup-card" data-dir="vi-en" onclick="selectQuizDir('vi-en')">
+            <span class="qs-icon">🇻🇳→🇬🇧</span>
+            <div class="qs-label">Việt → English</div>
+            <div class="qs-desc">Nhìn nghĩa tiếng Việt, gõ/chọn từ</div>
+          </div>
+        </div>
+        <p class="section-label">Dạng câu hỏi</p>
+        <div class="quiz-setup-grid" id="quizTypeGrid">
+          <div class="quiz-setup-card selected" data-type="mc" onclick="selectQuizType('mc')">
+            <span class="qs-icon">🔤</span>
+            <div class="qs-label">Trắc nghiệm</div>
+            <div class="qs-desc">4 đáp án, chọn đúng</div>
+          </div>
+          <div class="quiz-setup-card" data-type="input" onclick="selectQuizType('input')">
+            <span class="qs-icon">⌨️</span>
+            <div class="qs-label">Điền vào ô</div>
+            <div class="qs-desc">Tự gõ câu trả lời</div>
+          </div>
+        </div>
+        <p class="section-label">Chủ đề</p>
+        <select class="quiz-topic-select" id="quizTopicSelect">
+          <option value="ALL">📚 Tất cả chủ đề</option>
+          <option value="REVIEW">⏰ Ôn hôm nay (SRS)</option>
+          <option value="FORGOTTEN">🧠 Từ mau quên</option>
+        </select>
+        <p class="section-label">Số từ mỗi phiên (tối đa 10)</p>
+        <div class="quiz-word-count-row" id="quizCountRow">
+          <button class="quiz-count-btn selected" data-n="5" onclick="selectQuizCount(5)">5</button>
+          <button class="quiz-count-btn" data-n="7" onclick="selectQuizCount(7)">7</button>
+          <button class="quiz-count-btn" data-n="10" onclick="selectQuizCount(10)">10</button>
+        </div>
+        <button class="btn-submit" onclick="startQuiz()" style="margin-top:4px;">🚀 Bắt đầu kiểm tra</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ OVERLAY (full-screen) -->
+  <div class="quiz-overlay" id="quizOverlay">
+    <div class="quiz-header">
+      <h2 id="quizTitle">Quiz</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="quizRetryBadge" class="quiz-retry-badge" style="display:none;">🔁 <span id="quizRetryCount">0</span> lỗi</span>
+        <button class="quiz-close-btn" onclick="closeQuiz()">✕</button>
+      </div>
+    </div>
+    <div class="quiz-progress-wrap">
+      <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="quizProgressFill"></div></div>
+      <div class="quiz-progress-label" id="quizProgressLabel">0 / 0</div>
+    </div>
+
+    <!-- Active quiz question area -->
+    <div class="quiz-body" id="quizBody">
+      <div class="quiz-prompt-card" id="quizPromptCard">
+        <div class="quiz-mode-badge" id="quizModeBadge">EN → VI</div>
+        <div class="quiz-prompt-label" id="quizPromptLabel">Nghĩa của từ sau là gì?</div>
+        <div class="quiz-prompt-word" id="quizPromptWord">–</div>
+        <div class="quiz-prompt-hint" id="quizPromptHint"></div>
+        <div class="quiz-topic-chip" id="quizTopicChip"></div>
+      </div>
+
+      <!-- MC choices -->
+      <div class="quiz-choices" id="quizChoices"></div>
+
+      <!-- Input mode -->
+      <div class="quiz-input-wrap" id="quizInputWrap" style="display:none;">
+        <input type="text" class="quiz-input" id="quizInput" placeholder="Gõ câu trả lời..." autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="quiz-submit-btn" onclick="submitQuizInput()">↩</button>
+      </div>
+
+      <div class="quiz-feedback" id="quizFeedback">
+        <div class="quiz-feedback-title" id="quizFeedbackTitle">✅ Chính xác!</div>
+        <div class="quiz-feedback-answer" id="quizFeedbackAnswer"></div>
+        <div class="quiz-feedback-phone" id="quizFeedbackPhone"></div>
+        <div class="quiz-feedback-eg" id="quizFeedbackEg"></div>
+      </div>
+
+      <button class="quiz-next-btn" id="quizNextBtn" onclick="quizNext()">Tiếp theo →</button>
+    </div>
+
+    <!-- Results screen -->
+    <div class="quiz-results" id="quizResults">
+      <div class="quiz-score-ring" id="quizScoreRing">
+        <span class="quiz-score-pct" id="quizScorePct">0%</span>
+        <span class="quiz-score-label">ĐIỂM</span>
+      </div>
+      <div class="quiz-result-title" id="quizResultTitle">Hoàn thành!</div>
+      <div class="quiz-result-breakdown">
+        <div class="qrb-item qrb-correct"><strong id="qrb-c">0</strong><span>ĐÚNG</span></div>
+        <div class="qrb-item qrb-wrong"><strong id="qrb-w">0</strong><span>SAI</span></div>
+        <div class="qrb-item qrb-retry"><strong id="qrb-r">0</strong><span>SỬA LẠI</span></div>
+      </div>
+      <div class="quiz-result-actions" id="quizResultActions">
+        <button class="quiz-result-btn quiz-result-home" onclick="closeQuiz()">← Về</button>
+        <button class="quiz-result-btn quiz-result-retry-wrongs" id="quizRetryWrongsBtn" onclick="retryWrongWords()" style="display:none;">🔁 Ôn từ sai</button>
+        <button class="quiz-result-btn quiz-result-again" onclick="restartQuiz()">🔄 Làm lại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS MODAL -->
+  <div class="modal-overlay" id="statsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>📊 Thống kê học tập</h3>
+        <button class="close-modal" onclick="closeModal('statsModal')">✕</button>
+      </div>
+      <div class="modal-body" id="statsModalBody"></div>
+    </div>
   </div>
 
   <!-- MODAL: QUẢN LÝ TỪ VỰNG -->
@@ -2039,6 +2386,520 @@ function checkPwaPrompt() {
   }
 }
 
+/* ============================================================
+   QUIZ MODE — reverse (VI→EN) + forward (EN→VI), MC + input,
+   10-word sessions, error-correction loop, SRS integration
+   ============================================================ */
+
+// --- Setup state ---
+let quizDir = 'en-vi';       // 'en-vi' | 'vi-en'
+let quizType = 'mc';          // 'mc' | 'input'
+let quizTopicFilter = 'ALL';
+let quizWordCount = 5;
+
+// --- Active session state ---
+let quizQueue = [];           // words queued for this session
+let quizErrorPool = [];       // words answered incorrectly (for error-correction loop)
+let quizSessionDone = [];     // { word, correct, attempts }
+let quizCurrentItem = null;
+let quizQueueIndex = 0;
+let quizCorrectCount = 0;
+let quizWrongCount = 0;
+let quizErrorCorrectionCount = 0;
+let quizTotalShown = 0;
+let quizInErrorLoop = false;
+let quizLastConfig = {};      // for restart
+
+// --- Quiz Statistics (persisted) ---
+function loadQuizStats() {
+  try { return JSON.parse(localStorage.getItem('toeic_quiz_stats') || '{"sessions":[],"topicStats":{}}'); }
+  catch (_) { return { sessions: [], topicStats: {} }; }
+}
+function saveQuizStats(stats) {
+  localStorage.setItem('toeic_quiz_stats', JSON.stringify(stats));
+}
+
+function populateQuizTopics() {
+  const sel = document.getElementById('quizTopicSelect');
+  const topics = [...new Set(words.map(w => w.topic))].sort((a, b) => (parseInt(a)||999) - (parseInt(b)||999));
+  // Keep first 3 fixed options, append topics
+  const fixed = ['<option value="ALL">📚 Tất cả chủ đề</option>',
+                  '<option value="REVIEW">⏰ Ôn hôm nay (SRS)</option>',
+                  '<option value="FORGOTTEN">🧠 Từ mau quên</option>'];
+  sel.innerHTML = fixed.join('') + topics.map(t => `<option value="${t}">${t}</option>`).join('');
+}
+
+function selectQuizDir(dir) {
+  quizDir = dir;
+  document.querySelectorAll('#quizDirectionGrid .quiz-setup-card').forEach(el => el.classList.remove('selected'));
+  document.querySelector(`[data-dir="${dir}"]`).classList.add('selected');
+}
+function selectQuizType(type) {
+  quizType = type;
+  document.querySelectorAll('#quizTypeGrid .quiz-setup-card').forEach(el => el.classList.remove('selected'));
+  document.querySelector(`[data-type="${type}"]`).classList.add('selected');
+}
+function selectQuizCount(n) {
+  quizWordCount = n;
+  document.querySelectorAll('#quizCountRow .quiz-count-btn').forEach(el => el.classList.remove('selected'));
+  document.querySelector(`[data-n="${n}"]`).classList.add('selected');
+}
+
+function openQuizSetup() {
+  populateQuizTopics();
+  openModal('quizSetupModal');
+}
+
+function getQuizPool(topicFilter) {
+  if (topicFilter === 'ALL') return [...words];
+  if (topicFilter === 'REVIEW') return words.filter(w => w.dueDate <= Date.now());
+  if (topicFilter === 'FORGOTTEN') return words.filter(w => w.forgetCount >= 2).sort((a,b) => b.forgetCount - a.forgetCount);
+  return words.filter(w => w.topic === topicFilter);
+}
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz() {
+  const topicFilter = document.getElementById('quizTopicSelect').value;
+  const pool = getQuizPool(topicFilter);
+  if (pool.length < 2) {
+    alert('Cần ít nhất 2 từ trong nhóm này để bắt đầu kiểm tra.');
+    return;
+  }
+  closeModal('quizSetupModal');
+  quizLastConfig = { dir: quizDir, type: quizType, topic: topicFilter, count: quizWordCount };
+  const capped = Math.min(quizWordCount, 10, pool.length);
+  quizQueue = shuffleArray(pool).slice(0, capped);
+  quizErrorPool = [];
+  quizSessionDone = [];
+  quizQueueIndex = 0;
+  quizCorrectCount = 0;
+  quizWrongCount = 0;
+  quizErrorCorrectionCount = 0;
+  quizTotalShown = 0;
+  quizInErrorLoop = false;
+  openQuizOverlay();
+  renderQuizQuestion();
+}
+
+function restartQuiz() {
+  const { dir, type, topic, count } = quizLastConfig;
+  quizDir = dir; quizType = type; quizWordCount = count;
+  document.getElementById('quizSetupModal');
+  const pool = getQuizPool(topic);
+  if (pool.length < 2) { closeQuiz(); return; }
+  const capped = Math.min(count, 10, pool.length);
+  quizQueue = shuffleArray(pool).slice(0, capped);
+  quizErrorPool = [];
+  quizSessionDone = [];
+  quizQueueIndex = 0;
+  quizCorrectCount = 0;
+  quizWrongCount = 0;
+  quizErrorCorrectionCount = 0;
+  quizTotalShown = 0;
+  quizInErrorLoop = false;
+  showQuizBody();
+  renderQuizQuestion();
+}
+
+function retryWrongWords() {
+  const wrongWords = quizSessionDone.filter(d => !d.correct).map(d => d.word);
+  if (!wrongWords.length) return;
+  quizQueue = shuffleArray(wrongWords);
+  quizErrorPool = [];
+  quizSessionDone = [];
+  quizQueueIndex = 0;
+  quizCorrectCount = 0;
+  quizWrongCount = 0;
+  quizErrorCorrectionCount = 0;
+  quizTotalShown = 0;
+  quizInErrorLoop = false;
+  showQuizBody();
+  renderQuizQuestion();
+}
+
+function openQuizOverlay() {
+  document.getElementById('quizOverlay').classList.add('open');
+  showQuizBody();
+}
+function closeQuiz() {
+  document.getElementById('quizOverlay').classList.remove('open');
+}
+function showQuizBody() {
+  document.getElementById('quizBody').style.display = 'flex';
+  document.getElementById('quizResults').classList.remove('show');
+}
+
+function getNextQuizWord() {
+  // First serve the main queue
+  if (quizQueueIndex < quizQueue.length) {
+    return { word: quizQueue[quizQueueIndex++], fromErrorPool: false };
+  }
+  // Then error-correction loop
+  if (quizErrorPool.length > 0) {
+    quizInErrorLoop = true;
+    const w = quizErrorPool.shift();
+    // Re-enqueue at end if still struggling (handled after answer)
+    return { word: w, fromErrorPool: true };
+  }
+  return null;
+}
+
+function renderQuizQuestion() {
+  const next = getNextQuizWord();
+  if (!next) { showQuizResults(); return; }
+
+  quizCurrentItem = next;
+  quizTotalShown++;
+
+  const w = next.word;
+  const total = quizQueue.length;
+  const done = Math.min(quizQueueIndex, total);
+  const errorLeft = quizErrorPool.length + (next.fromErrorPool ? 1 : 0);
+
+  // Update header badges
+  const retryBadge = document.getElementById('quizRetryBadge');
+  const retryCount = document.getElementById('quizRetryCount');
+  if (errorLeft > 0 || quizInErrorLoop) {
+    retryBadge.style.display = 'flex';
+    retryCount.innerText = errorLeft;
+  } else {
+    retryBadge.style.display = 'none';
+  }
+
+  // Update title
+  const dirLabel = quizDir === 'vi-en' ? 'Việt → English' : 'English → Việt';
+  document.getElementById('quizTitle').innerText = quizInErrorLoop ? '🔁 Luyện lại từ sai' : dirLabel;
+  document.getElementById('quizModeBadge').innerText = quizDir === 'vi-en' ? '🇻🇳 → 🇬🇧' : '🇬🇧 → 🇻🇳';
+
+  // Update progress
+  const progressPct = total > 0 ? (done / total) * 100 : 0;
+  document.getElementById('quizProgressFill').style.width = progressPct + '%';
+  document.getElementById('quizProgressLabel').innerText = `${done} / ${total}${errorLeft > 0 ? ` · 🔁 ${errorLeft}` : ''}`;
+
+  // Prompt
+  const isViEn = quizDir === 'vi-en';
+  document.getElementById('quizPromptLabel').innerText = isViEn
+    ? 'Từ tiếng Anh tương ứng với nghĩa dưới đây là gì?'
+    : 'Nghĩa tiếng Việt của từ sau là gì?';
+  document.getElementById('quizPromptWord').innerText = isViEn ? w.mean : w.word;
+  document.getElementById('quizPromptHint').innerText = isViEn
+    ? (w.pos ? `(${w.pos})` : '')
+    : (w.phone ? w.phone : '');
+  document.getElementById('quizTopicChip').innerText = w.topic;
+
+  // Hide feedback, next btn
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'quiz-feedback';
+  document.getElementById('quizNextBtn').className = 'quiz-next-btn';
+
+  // Render question type
+  if (quizType === 'mc') {
+    renderMCQuestion(w);
+  } else {
+    renderInputQuestion(w);
+  }
+}
+
+function renderMCQuestion(correctWord) {
+  document.getElementById('quizInputWrap').style.display = 'none';
+  const choicesEl = document.getElementById('quizChoices');
+  choicesEl.style.display = 'flex';
+
+  const isViEn = quizDir === 'vi-en';
+  // Build distractors from same topic first, then random
+  const sameTopicPool = words.filter(w => w.id !== correctWord.id && w.topic === correctWord.topic);
+  const otherPool = words.filter(w => w.id !== correctWord.id && w.topic !== correctWord.topic);
+  const distractorPool = shuffleArray([...sameTopicPool, ...otherPool]);
+  const distractors = distractorPool.slice(0, 3);
+
+  const choices = shuffleArray([correctWord, ...distractors]);
+  const letters = ['A', 'B', 'C', 'D'];
+
+  choicesEl.innerHTML = choices.map((w, i) => {
+    const label = isViEn ? w.word : w.mean;
+    return `<button class="quiz-choice-btn" data-id="${w.id}" onclick="handleMCAnswer('${w.id}','${correctWord.id}')">
+      <span class="quiz-choice-letter">${letters[i]}</span>${label}
+    </button>`;
+  }).join('');
+}
+
+function renderInputQuestion(correctWord) {
+  document.getElementById('quizChoices').style.display = 'none';
+  const inputWrap = document.getElementById('quizInputWrap');
+  inputWrap.style.display = 'block';
+  const inp = document.getElementById('quizInput');
+  inp.value = '';
+  inp.className = 'quiz-input';
+  inp.disabled = false;
+  inp.placeholder = quizDir === 'vi-en' ? 'Gõ từ tiếng Anh...' : 'Gõ nghĩa tiếng Việt...';
+  setTimeout(() => inp.focus(), 100);
+  inp.onkeydown = e => { if (e.key === 'Enter') submitQuizInput(); };
+}
+
+function normalizeAnswer(s) {
+  return String(s || '').trim().toLowerCase()
+    .replace(/\s*\([^)]*\)/g, '') // remove (parenthetical)
+    .replace(/[,;]/g, '')
+    .trim();
+}
+
+function submitQuizInput() {
+  const inp = document.getElementById('quizInput');
+  const userVal = inp.value;
+  if (!userVal.trim() || !quizCurrentItem) return;
+  inp.disabled = true;
+
+  const w = quizCurrentItem.word;
+  const isViEn = quizDir === 'vi-en';
+  const correctRaw = isViEn ? w.word : w.mean;
+
+  // Accept any comma-separated meaning
+  const correctParts = correctRaw.split(/[,/]/).map(normalizeAnswer);
+  const userNorm = normalizeAnswer(userVal);
+  const isCorrect = correctParts.some(c => c === userNorm);
+
+  inp.className = 'quiz-input ' + (isCorrect ? 'correct' : 'wrong');
+  showQuizFeedback(isCorrect, w);
+  recordAnswer(isCorrect);
+}
+
+function handleMCAnswer(chosenId, correctId) {
+  // Disable all buttons
+  const btns = document.querySelectorAll('.quiz-choice-btn');
+  btns.forEach(b => b.style.pointerEvents = 'none');
+
+  const isCorrect = chosenId === correctId;
+
+  btns.forEach(b => {
+    if (b.dataset.id === correctId) b.classList.add(isCorrect ? 'correct-choice' : 'reveal-correct');
+    if (b.dataset.id === chosenId && !isCorrect) b.classList.add('wrong-choice');
+  });
+
+  const w = quizCurrentItem.word;
+  showQuizFeedback(isCorrect, w);
+  recordAnswer(isCorrect);
+}
+
+function showQuizFeedback(isCorrect, w) {
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'quiz-feedback show ' + (isCorrect ? 'correct-fb' : 'wrong-fb');
+  document.getElementById('quizFeedbackTitle').innerText = isCorrect ? '✅ Chính xác!' : '❌ Chưa đúng';
+  document.getElementById('quizFeedbackAnswer').innerText = isCorrect
+    ? (quizDir === 'vi-en' ? w.word : w.mean)
+    : `Đáp án đúng: ${quizDir === 'vi-en' ? w.word : w.mean}`;
+  document.getElementById('quizFeedbackPhone').innerText = w.phone || '';
+  document.getElementById('quizFeedbackEg').innerText = w.eg ? `"${w.eg}"` : '';
+  document.getElementById('quizNextBtn').className = 'quiz-next-btn show';
+}
+
+function recordAnswer(isCorrect) {
+  const w = quizCurrentItem.word;
+  if (isCorrect) {
+    quizCorrectCount++;
+    // Update SRS for correct answer
+    const wObj = words.find(x => x.id === w.id);
+    if (wObj) {
+      const now = Date.now();
+      const schedule = [3, 7, 14, 30];
+      wObj.reviewCount = (wObj.reviewCount || 0) + 1;
+      wObj.lastReviewedAt = now;
+      if (!wObj.firstLearnedAt) wObj.firstLearnedAt = now;
+      wObj.interval = schedule[Math.min(wObj.repetition, schedule.length - 1)];
+      wObj.repetition += 1;
+      wObj.dueDate = now + wObj.interval * 86400000;
+      saveStorage();
+    }
+  } else {
+    quizWrongCount++;
+    if (quizCurrentItem.fromErrorPool) {
+      quizErrorCorrectionCount++;
+    }
+    // Add to error pool for correction loop (not if already from error pool — will re-add once)
+    quizErrorPool.push(w);
+    // Update SRS for wrong answer
+    const wObj = words.find(x => x.id === w.id);
+    if (wObj) {
+      const now = Date.now();
+      wObj.reviewCount = (wObj.reviewCount || 0) + 1;
+      wObj.lastReviewedAt = now;
+      if (!wObj.firstLearnedAt) wObj.firstLearnedAt = now;
+      wObj.forgetCount = (wObj.forgetCount || 0) + 1;
+      wObj.repetition = 0;
+      wObj.interval = 0;
+      wObj.dueDate = now;
+      saveStorage();
+    }
+    // Update retry badge
+    document.getElementById('quizRetryBadge').style.display = 'flex';
+    document.getElementById('quizRetryCount').innerText = quizErrorPool.length;
+  }
+  quizSessionDone.push({ word: w, correct: isCorrect });
+}
+
+function quizNext() {
+  renderQuizQuestion();
+}
+
+function showQuizResults() {
+  document.getElementById('quizBody').style.display = 'none';
+  const results = document.getElementById('quizResults');
+  results.classList.add('show');
+
+  const total = quizSessionDone.length;
+  const correct = quizSessionDone.filter(d => d.correct).length;
+  const wrong = quizSessionDone.filter(d => !d.correct).length;
+  const pct = total > 0 ? Math.round((quizCorrectCount / quizTotalShown) * 100) : 0;
+
+  document.getElementById('quizScorePct').innerText = pct + '%';
+  document.getElementById('qrb-c').innerText = quizCorrectCount;
+  document.getElementById('qrb-w').innerText = quizWrongCount;
+  document.getElementById('qrb-r').innerText = quizErrorCorrectionCount;
+
+  const titles = pct >= 90 ? '🏆 Xuất sắc!' : pct >= 70 ? '👍 Tốt lắm!' : pct >= 50 ? '💪 Cố lên!' : '📚 Ôn thêm nhé!';
+  document.getElementById('quizResultTitle').innerText = titles;
+
+  // Show "retry wrongs" button if there were any wrongs
+  const wrongWords = quizSessionDone.filter(d => !d.correct);
+  const retryBtn = document.getElementById('quizRetryWrongsBtn');
+  retryBtn.style.display = wrongWords.length > 0 ? 'block' : 'none';
+  if (wrongWords.length > 0) retryBtn.innerText = `🔁 Ôn ${wrongWords.length} từ sai`;
+
+  // Save stats
+  const stats = loadQuizStats();
+  const session = {
+    date: Date.now(),
+    dir: quizDir,
+    type: quizType,
+    topic: quizLastConfig.topic,
+    total: quizTotalShown,
+    correct: quizCorrectCount,
+    wrong: quizWrongCount,
+    pct,
+    words: quizSessionDone.map(d => ({ word: d.word.word, correct: d.correct }))
+  };
+  stats.sessions.unshift(session);
+  if (stats.sessions.length > 50) stats.sessions = stats.sessions.slice(0, 50);
+  // Topic stats
+  const topicKey = quizLastConfig.topic;
+  if (!stats.topicStats[topicKey]) stats.topicStats[topicKey] = { total: 0, correct: 0 };
+  stats.topicStats[topicKey].total += quizTotalShown;
+  stats.topicStats[topicKey].correct += quizCorrectCount;
+  saveQuizStats(stats);
+
+  // Update flashcard stats
+  updateGlobalStats();
+  renderFilters();
+}
+
+/* ============================================================
+   LEARNING STATISTICS MODAL
+   ============================================================ */
+function openStatsModal() {
+  renderStatsModal();
+  openModal('statsModal');
+}
+
+function renderStatsModal() {
+  const stats = loadQuizStats();
+  const now = Date.now();
+
+  const totalWords = words.length;
+  const learnedWords = words.filter(w => w.firstLearnedAt).length;
+  const dueWords = words.filter(w => w.dueDate <= now).length;
+  const forgottenWords = words.filter(w => w.forgetCount >= 2).length;
+  const totalSessions = stats.sessions.length;
+  const totalQuizCorrect = stats.sessions.reduce((s, sess) => s + sess.correct, 0);
+  const totalQuizAnswered = stats.sessions.reduce((s, sess) => s + sess.total, 0);
+  const avgAccuracy = totalQuizAnswered > 0 ? Math.round((totalQuizCorrect / totalQuizAnswered) * 100) : 0;
+
+  // Streak calculation
+  const reviewDates = [...new Set(words.filter(w => w.lastReviewedAt).map(w =>
+    new Date(w.lastReviewedAt).toDateString()))].sort();
+  let streak = 0;
+  if (reviewDates.length > 0) {
+    const today = new Date().toDateString();
+    const yesterday = new Date(now - 86400000).toDateString();
+    let checkDate = reviewDates.includes(today) ? new Date() : new Date(now - 86400000);
+    if (reviewDates.includes(checkDate.toDateString())) {
+      streak = 1;
+      for (let i = 1; i < 365; i++) {
+        const prev = new Date(checkDate - 86400000 * i).toDateString();
+        if (reviewDates.includes(prev)) streak++;
+        else break;
+      }
+    }
+  }
+
+  // Top 5 topics by quiz accuracy
+  const topicPerfHtml = Object.entries(stats.topicStats || {})
+    .filter(([,v]) => v.total > 0)
+    .sort((a, b) => (b[1].correct/b[1].total) - (a[1].correct/a[1].total))
+    .slice(0, 5)
+    .map(([topic, v]) => {
+      const pct = Math.round((v.correct / v.total) * 100);
+      return `<div class="stat-topic-row">
+        <div class="stat-topic-name">${topic}</div>
+        <div class="stat-topic-track"><div class="stat-topic-fill" style="width:${pct}%"></div></div>
+        <div class="stat-topic-pct">${pct}%</div>
+      </div>`;
+    }).join('') || '<p style="color:var(--sub);font-size:13px;">Chưa có dữ liệu quiz.</p>';
+
+  // Recent sessions
+  const recentSessions = stats.sessions.slice(0, 8).map(s => {
+    const d = new Date(s.date);
+    const dateStr = `${d.getDate()}/${d.getMonth()+1} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const dirLabel = s.dir === 'vi-en' ? '🇻🇳→🇬🇧' : '🇬🇧→🇻🇳';
+    const topicLabel = s.topic === 'ALL' ? 'Tất cả' : s.topic === 'REVIEW' ? 'SRS' : s.topic;
+    return `<div class="stat-history-item">
+      <div>
+        <div style="font-weight:700;font-size:13px;">${dirLabel} · ${topicLabel}</div>
+        <div style="color:var(--sub);font-size:11px;">${dateStr}</div>
+      </div>
+      <div class="stat-history-score">${s.pct}% <span style="font-weight:400;color:var(--sub);font-size:11px;">(${s.correct}/${s.total})</span></div>
+    </div>`;
+  }).join('') || '<p style="color:var(--sub);font-size:13px;">Chưa có phiên kiểm tra nào.</p>';
+
+  // SRS breakdown
+  const srsNew = words.filter(w => !w.firstLearnedAt).length;
+  const srs3 = words.filter(w => w.interval === 3).length;
+  const srs7 = words.filter(w => w.interval === 7).length;
+  const srs14 = words.filter(w => w.interval === 14).length;
+  const srs30 = words.filter(w => w.interval >= 30).length;
+
+  document.getElementById('statsModalBody').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><strong>${learnedWords}</strong><span>Đã học / ${totalWords}</span></div>
+      <div class="stat-card"><strong>${dueWords}</strong><span>Cần ôn hôm nay</span></div>
+      <div class="stat-card"><strong>${streak}</strong><span>Ngày liên tiếp 🔥</span></div>
+      <div class="stat-card"><strong>${avgAccuracy}%</strong><span>Độ chính xác Quiz</span></div>
+    </div>
+
+    <p class="section-label">SRS — Phân bổ lịch ôn tập</p>
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;">
+      <div class="stat-card" style="padding:10px 4px;"><strong style="font-size:16px;">${srsNew}</strong><span>Mới</span></div>
+      <div class="stat-card" style="padding:10px 4px;"><strong style="font-size:16px;">${srs3}</strong><span>3 ngày</span></div>
+      <div class="stat-card" style="padding:10px 4px;"><strong style="font-size:16px;">${srs7}</strong><span>7 ngày</span></div>
+      <div class="stat-card" style="padding:10px 4px;"><strong style="font-size:16px;">${srs14}</strong><span>14 ngày</span></div>
+      <div class="stat-card" style="padding:10px 4px;"><strong style="font-size:16px;">${srs30}</strong><span>30+ ngày</span></div>
+    </div>
+
+    <p class="section-label">Độ chính xác theo chủ đề</p>
+    <div class="stat-topic-bar">${topicPerfHtml}</div>
+
+    <p class="section-label">Lịch sử kiểm tra gần đây</p>
+    ${recentSessions}
+  `;
+}
+
+
 window.onload = () => {
   initTheme();
   initStorage();
@@ -2048,6 +2909,7 @@ window.onload = () => {
   }
   renderFilters();
   renderCard();
+  populateQuizTopics();
   checkPwaPrompt();
 
   // Mở khoá AudioContext xử lý phát âm ngay từ cử chỉ chạm/click đầu tiên (bắt buộc trên iOS Safari).
