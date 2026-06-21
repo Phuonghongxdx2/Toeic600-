@@ -48,10 +48,11 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
   }
 
   /* Header Layout */
@@ -122,12 +123,13 @@
 
   /* Main Flashcard viewport */
   .main {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    padding: 10px 20px; min-height: 0; perspective: 1000px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 20px; perspective: 1000px;
+    height: 340px; flex-shrink: 0;
   }
   
   .card-box {
-    width: 100%; max-width: 400px; height: 100%; max-height: 420px;
+    width: 100%; max-width: 400px; height: 300px;
     position: relative; transform-style: preserve-3d;
     transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
     cursor: grab; touch-action: pan-y; user-select: none;
@@ -537,6 +539,81 @@
     font-size: 12px; color: var(--sub); text-align: center;
     margin-top: 8px; font-style: italic;
   }
+
+  /* ============== TEST SECTION ROW ============== */
+  .test-section {
+    padding: 10px 20px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .test-section-title {
+    font-size: 11px; font-weight: 800; color: var(--sub);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .test-mode-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  }
+  .test-mode-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 18px; padding: 14px 12px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; cursor: pointer; transition: all 0.18s;
+    text-align: center;
+  }
+  .test-mode-card:active { transform: scale(0.96); }
+  .test-mode-card:hover { border-color: var(--accent2); }
+  .test-mode-icon { font-size: 22px; }
+  .test-mode-label { font-size: 13px; font-weight: 700; color: var(--text); }
+  .test-mode-desc { font-size: 10px; color: var(--sub); }
+
+  /* ============== SETTINGS STYLES ============== */
+  .settings-section { padding: 0; }
+  .settings-group { margin-bottom: 20px; }
+  .settings-group-label {
+    font-size: 11px; font-weight: 800; color: var(--sub);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 8px; padding: 0 2px;
+  }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: var(--panel);
+    border: 1px solid var(--border); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .settings-row:first-child { border-radius: 14px 14px 0 0; }
+  .settings-row:last-child { border-radius: 0 0 14px 14px; border-top: none; }
+  .settings-row:only-child { border-radius: 14px; }
+  .settings-row + .settings-row { border-top: none; }
+  .settings-row:active { background: var(--panel-brighter); }
+  .settings-row-left { display: flex; align-items: center; gap: 12px; }
+  .settings-row-icon { font-size: 18px; width: 24px; text-align: center; }
+  .settings-row-label { font-size: 15px; font-weight: 600; color: var(--text); }
+  .settings-row-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .settings-row-right { color: var(--sub); font-size: 14px; }
+  .settings-theme-btns { display: flex; background: var(--panel-brighter); border: 1px solid var(--border); padding: 2px; border-radius: 10px; }
+  .settings-theme-btn { background: none; border: none; font-size: 14px; padding: 5px 10px; border-radius: 8px; cursor: pointer; color: var(--sub); font-weight: 600; transition: all 0.2s; }
+  .settings-theme-btn.active { background: var(--panel); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+  /* Auth modal */
+  .auth-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .auth-tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 700; color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.18s; }
+  .auth-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+  .auth-panel { display: none; }
+  .auth-panel.active { display: block; }
+  .auth-divider { text-align: center; color: var(--sub); font-size: 12px; margin: 14px 0; position: relative; }
+  .auth-divider::before, .auth-divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--border); }
+  .auth-divider::before { left: 0; }
+  .auth-divider::after { right: 0; }
+  .btn-google {
+    width: 100%; padding: 13px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--panel-brighter); color: var(--text); font-size: 14px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;
+  }
+  .account-avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--accent2), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; margin: 0 auto 12px; }
+  .account-name { font-size: 18px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+  .account-email { font-size: 13px; color: var(--sub); text-align: center; margin-bottom: 20px; }
+  .btn-danger { background: rgba(244,67,54,0.08); color: var(--red); border: 1px solid rgba(244,67,54,0.2); width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -546,14 +623,10 @@
       <h1>TOEIC <span>600</span></h1>
       <div class="stats-header" id="statsHeader">Đang tải...</div>
     </div>
-    <!-- Bộ điều khiển chế độ Light/Dark/System -->
+    <!-- Header actions -->
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="theme-btn" style="font-size:18px;padding:6px 8px;border-radius:10px;background:var(--panel-brighter);border:1px solid var(--border);" onclick="openStatsModal()" title="Thống kê">📊</button>
-      <div class="theme-selector">
-        <button class="theme-btn" id="theme-light" onclick="changeTheme('light')">☀️</button>
-        <button class="theme-btn" id="theme-dark" onclick="changeTheme('dark')">🌙</button>
-        <button class="theme-btn" id="theme-system" onclick="changeTheme('system')">💻</button>
-      </div>
+      <button class="theme-btn" style="font-size:18px;padding:6px 8px;border-radius:10px;background:var(--panel-brighter);border:1px solid var(--border);" onclick="openModal('settingsModal')" title="Cài đặt">⚙️</button>
     </div>
   </header>
 
@@ -629,8 +702,45 @@
     <button class="navbtn" onclick="openModal('addModal')">➕ Thêm từ</button>
   </div>
 
-  <!-- QUIZ FAB BUTTON -->
-  <button class="quiz-fab" onclick="openQuizSetup()" title="Kiểm tra từ vựng">🧩</button>
+  <!-- TEST SECTION (collapsible) -->
+  <div class="test-section">
+    <div class="test-section-title" onclick="toggleTestSection()" id="testSectionTitle" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;">
+      <span>🧩 Chế độ kiểm tra</span>
+      <span id="testSectionChevron" style="font-size:14px;transition:transform 0.25s;display:inline-block;">▼</span>
+    </div>
+    <div class="test-mode-grid" id="testModeGrid" style="display:none;margin-top:10px;">
+      <div class="test-mode-card" onclick="quickStartQuiz('mc','en-vi')">
+        <div class="test-mode-icon">🔤</div>
+        <div class="test-mode-label">Trắc nghiệm</div>
+        <div class="test-mode-desc">EN → VI · 4 đáp án</div>
+      </div>
+      <div class="test-mode-card" onclick="quickStartQuiz('mc','vi-en')">
+        <div class="test-mode-icon">🇻🇳</div>
+        <div class="test-mode-label">Trắc nghiệm ngược</div>
+        <div class="test-mode-desc">VI → EN · 4 đáp án</div>
+      </div>
+      <div class="test-mode-card" onclick="quickStartQuiz('input','en-vi')">
+        <div class="test-mode-icon">⌨️</div>
+        <div class="test-mode-label">Gõ câu trả lời</div>
+        <div class="test-mode-desc">Tự gõ nghĩa hoặc từ</div>
+      </div>
+      <div class="test-mode-card" onclick="quickStartQuiz('dictation','en-vi')">
+        <div class="test-mode-icon">🎧</div>
+        <div class="test-mode-label">Nghe &amp; Gõ từ</div>
+        <div class="test-mode-desc">Nghe phát âm, gõ tiếng Anh</div>
+      </div>
+      <div class="test-mode-card" onclick="quickStartQuiz('fillblank','en-vi')">
+        <div class="test-mode-icon">📝</div>
+        <div class="test-mode-label">Điền vào câu</div>
+        <div class="test-mode-desc">Điền từ vào câu ví dụ</div>
+      </div>
+      <div class="test-mode-card" onclick="openQuizSetup()">
+        <div class="test-mode-icon">⚙️</div>
+        <div class="test-mode-label">Tùy chỉnh</div>
+        <div class="test-mode-desc">Chọn chủ đề, số từ...</div>
+      </div>
+    </div>
+  </div>
 
   <!-- QUIZ SETUP MODAL -->
   <div class="modal-overlay" id="quizSetupModal">
@@ -856,6 +966,183 @@
           </div>
           <button type="submit" class="btn-submit" id="saveWordBtn">Lưu vào kho từ</button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⚙️ Cài đặt</h3>
+        <button class="close-modal" onclick="closeModal('settingsModal')">✕</button>
+      </div>
+      <div class="modal-body settings-section">
+
+        <!-- Theme Group -->
+        <div class="settings-group">
+          <div class="settings-group-label">Giao diện</div>
+          <div class="settings-row" style="border-radius:14px; cursor:default;">
+            <div class="settings-row-left">
+              <span class="settings-row-icon">🎨</span>
+              <div>
+                <div class="settings-row-label">Chế độ màu</div>
+              </div>
+            </div>
+            <div class="settings-theme-btns">
+              <button class="settings-theme-btn" id="s-theme-light" onclick="changeTheme('light')">☀️</button>
+              <button class="settings-theme-btn" id="s-theme-dark" onclick="changeTheme('dark')">🌙</button>
+              <button class="settings-theme-btn" id="s-theme-system" onclick="changeTheme('system')">💻</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Group -->
+        <div class="settings-group">
+          <div class="settings-group-label">Tài khoản</div>
+          <!-- Logged-out state -->
+          <div id="settingsLoggedOut">
+            <div class="settings-row" onclick="openAuthModal('signin')" style="border-radius:14px 14px 0 0;">
+              <div class="settings-row-left">
+                <span class="settings-row-icon">🔑</span>
+                <div>
+                  <div class="settings-row-label">Đăng nhập</div>
+                  <div class="settings-row-sub">Đồng bộ tiến trình học</div>
+                </div>
+              </div>
+              <span class="settings-row-right">›</span>
+            </div>
+            <div class="settings-row" onclick="openAuthModal('signup')" style="border-radius:0 0 14px 14px; border-top:none;">
+              <div class="settings-row-left">
+                <span class="settings-row-icon">✨</span>
+                <div>
+                  <div class="settings-row-label">Tạo tài khoản</div>
+                  <div class="settings-row-sub">Miễn phí, đồng bộ đa thiết bị</div>
+                </div>
+              </div>
+              <span class="settings-row-right">›</span>
+            </div>
+          </div>
+          <!-- Logged-in state -->
+          <div id="settingsLoggedIn" style="display:none;">
+            <div class="settings-row" onclick="openAccountProfile()" style="border-radius:14px 14px 0 0;">
+              <div class="settings-row-left">
+                <span class="settings-row-icon" id="settingsAvatarIcon">👤</span>
+                <div>
+                  <div class="settings-row-label" id="settingsDisplayName">Người dùng</div>
+                  <div class="settings-row-sub" id="settingsDisplayEmail">email@example.com</div>
+                </div>
+              </div>
+              <span class="settings-row-right">›</span>
+            </div>
+            <div class="settings-row" onclick="signOut()" style="border-radius:0 0 14px 14px; border-top:none;">
+              <div class="settings-row-left">
+                <span class="settings-row-icon">🚪</span>
+                <div class="settings-row-label" style="color:var(--red);">Đăng xuất</div>
+              </div>
+              <span class="settings-row-right">›</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- About Group -->
+        <div class="settings-group">
+          <div class="settings-group-label">Ứng dụng</div>
+          <div class="settings-row" style="border-radius:14px; cursor:default;">
+            <div class="settings-row-left">
+              <span class="settings-row-icon">📖</span>
+              <div>
+                <div class="settings-row-label">TOEIC 600 Pro</div>
+                <div class="settings-row-sub">Phiên bản 3.0 · 453 từ vựng</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL (Sign In / Create Account) -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="authModalTitle">Tài khoản</h3>
+        <button class="close-modal" onclick="closeModal('authModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Tabs -->
+        <div class="auth-tabs">
+          <div class="auth-tab active" id="authTabSignin" onclick="switchAuthTab('signin')">Đăng nhập</div>
+          <div class="auth-tab" id="authTabSignup" onclick="switchAuthTab('signup')">Tạo tài khoản</div>
+        </div>
+
+        <!-- Sign In Panel -->
+        <div class="auth-panel active" id="authPanelSignin">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="signin-email" class="form-control" placeholder="you@example.com">
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu</label>
+            <input type="password" id="signin-password" class="form-control" placeholder="••••••••">
+          </div>
+          <button class="btn-submit" onclick="handleSignIn()">🔑 Đăng nhập</button>
+          <div class="auth-divider">hoặc</div>
+          <button class="btn-google" onclick="handleGoogleSignIn()">
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Đăng nhập với Google
+          </button>
+          <p style="text-align:center;font-size:12px;color:var(--sub);margin-top:14px;">
+            Chưa có tài khoản? <a href="#" onclick="switchAuthTab('signup');return false;" style="color:var(--accent2);font-weight:700;">Tạo ngay</a>
+          </p>
+        </div>
+
+        <!-- Sign Up Panel -->
+        <div class="auth-panel" id="authPanelSignup">
+          <div class="form-group">
+            <label>Tên hiển thị</label>
+            <input type="text" id="signup-name" class="form-control" placeholder="Nguyễn Văn A">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="signup-email" class="form-control" placeholder="you@example.com">
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu</label>
+            <input type="password" id="signup-password" class="form-control" placeholder="Tối thiểu 8 ký tự">
+          </div>
+          <button class="btn-submit" onclick="handleSignUp()">✨ Tạo tài khoản</button>
+          <div class="auth-divider">hoặc</div>
+          <button class="btn-google" onclick="handleGoogleSignIn()">
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Đăng ký với Google
+          </button>
+          <p style="text-align:center;font-size:12px;color:var(--sub);margin-top:14px;">
+            Đã có tài khoản? <a href="#" onclick="switchAuthTab('signin');return false;" style="color:var(--accent2);font-weight:700;">Đăng nhập</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCOUNT PROFILE MODAL -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>👤 Hồ sơ</h3>
+        <button class="close-modal" onclick="closeModal('profileModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="account-avatar" id="profileAvatar">?</div>
+        <div class="account-name" id="profileName">Người dùng</div>
+        <div class="account-email" id="profileEmail">email@example.com</div>
+        <div class="form-group">
+          <label>Tên hiển thị</label>
+          <input type="text" id="profile-name-input" class="form-control" placeholder="Nhập tên của bạn">
+        </div>
+        <button class="btn-submit" onclick="saveProfile()" style="margin-bottom:10px;">💾 Lưu thay đổi</button>
+        <button class="btn-danger" onclick="signOut()">🚪 Đăng xuất</button>
       </div>
     </div>
   </div>
@@ -1365,9 +1652,12 @@ function initTheme() {
 function changeTheme(themeMode, save = true) {
   if (save) localStorage.setItem('toeic_theme', themeMode);
 
-  // Reset trạng thái nút active
-  document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById(`theme-${themeMode}`).classList.add('active');
+  // Reset trạng thái nút active (header + settings modal)
+  document.querySelectorAll('.theme-btn, .settings-theme-btn').forEach(btn => btn.classList.remove('active'));
+  const lightBtn = document.getElementById(`theme-${themeMode}`);
+  if (lightBtn) lightBtn.classList.add('active');
+  const sBtn = document.getElementById(`s-theme-${themeMode}`);
+  if (sBtn) sBtn.classList.add('active');
 
   if (themeMode === 'system') {
     const systemSaysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1884,15 +2174,20 @@ function speakWithWebSpeech(currentWord, audioBtn) {
 
 
 function openModal(id) {
-  document.getElementById(id).classList.add('active');
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('active');
   if (id === 'dictModal') renderDictList();
   if (id === 'addModal' && !document.getElementById('in-id').value) {
     resetAddForm();
   }
+  if (id === 'settingsModal') updateAccountUI();
 }
 
 function closeModal(id) {
-  document.getElementById(id).classList.remove('active');
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('active');
   if (id === 'addModal') resetAddForm();
 }
 
@@ -1967,6 +2262,7 @@ async function saveWordForm(e) {
   currentIndex = 0;
   renderFilters();
   renderCard();
+  populateQuizTopics();
 }
 
 function editWord(id) {
@@ -2311,6 +2607,7 @@ function importFromExcel(event) {
       renderDictList();
       renderFilters();
       renderCard();
+      populateQuizTopics();
 
       statusEl.innerText = `✅ Đã nhập ${imported.length} từ (cột "${wordKey}" → Word, "${meaningKey}" → Meaning` +
         (hasHeader ? '' : ', file không có dòng tiêu đề — đã tự nhận diện theo nội dung') + `)` +
@@ -2515,17 +2812,17 @@ function populateQuizTopics() {
 function selectQuizDir(dir) {
   quizDir = dir;
   document.querySelectorAll('#quizDirectionGrid .quiz-setup-card').forEach(el => el.classList.remove('selected'));
-  document.querySelector(`[data-dir="${dir}"]`).classList.add('selected');
+  document.querySelector(`[data-dir="${dir}"]`)?.classList.add('selected');
 }
 function selectQuizType(type) {
   quizType = type;
   document.querySelectorAll('#quizTypeGrid .quiz-setup-card').forEach(el => el.classList.remove('selected'));
-  document.querySelector(`[data-type="${type}"]`).classList.add('selected');
+  document.querySelector(`[data-type="${type}"]`)?.classList.add('selected');
 }
 function selectQuizCount(n) {
   quizWordCount = n;
   document.querySelectorAll('#quizCountRow .quiz-count-btn').forEach(el => el.classList.remove('selected'));
-  document.querySelector(`[data-n="${n}"]`).classList.add('selected');
+  document.querySelector(`[data-n="${n}"]`)?.classList.add('selected');
 }
 
 function openQuizSetup() {
@@ -2585,7 +2882,6 @@ function startQuiz() {
 function restartQuiz() {
   const { dir, type, topic, count } = quizLastConfig;
   quizDir = dir; quizType = type; quizWordCount = count;
-  document.getElementById('quizSetupModal');
   const pool = getQuizPool(topic);
   if (pool.length < 2) { closeQuiz(); return; }
   const capped = Math.min(count, 10, pool.length);
@@ -2619,15 +2915,17 @@ function retryWrongWords() {
 }
 
 function openQuizOverlay() {
-  document.getElementById('quizOverlay').classList.add('open');
+  document.getElementById('quizOverlay')?.classList.add('open');
   showQuizBody();
 }
 function closeQuiz() {
-  document.getElementById('quizOverlay').classList.remove('open');
+  document.getElementById('quizOverlay')?.classList.remove('open');
 }
 function showQuizBody() {
-  document.getElementById('quizBody').style.display = 'flex';
-  document.getElementById('quizResults').classList.remove('show');
+  const body = document.getElementById('quizBody');
+  const results = document.getElementById('quizResults');
+  if (body) body.style.display = 'flex';
+  results?.classList.remove('show');
 }
 
 function getNextQuizWord() {
@@ -2653,8 +2951,10 @@ function renderQuizQuestion() {
   quizTotalShown++;
 
   // Reset prompt card visibility (modes may have hidden elements)
-  document.getElementById('quizPromptWord').style.display = '';
-  document.getElementById('quizPromptHint').style.display = '';
+  const promptWord = document.getElementById('quizPromptWord');
+  const promptHint = document.getElementById('quizPromptHint');
+  if (promptWord) promptWord.style.display = '';
+  if (promptHint) promptHint.style.display = '';
 
   const w = next.word;
   const total = quizQueue.length;
@@ -2664,38 +2964,47 @@ function renderQuizQuestion() {
   // Update header badges
   const retryBadge = document.getElementById('quizRetryBadge');
   const retryCount = document.getElementById('quizRetryCount');
-  if (errorLeft > 0 || quizInErrorLoop) {
-    retryBadge.style.display = 'flex';
-    retryCount.innerText = errorLeft;
-  } else {
-    retryBadge.style.display = 'none';
+  if (retryBadge && retryCount) {
+    if (errorLeft > 0 || quizInErrorLoop) {
+      retryBadge.style.display = 'flex';
+      retryCount.innerText = errorLeft;
+    } else {
+      retryBadge.style.display = 'none';
+    }
   }
 
   // Update title
   const dirLabel = quizDir === 'vi-en' ? 'Việt → English' : 'English → Việt';
-  document.getElementById('quizTitle').innerText = quizInErrorLoop ? '🔁 Luyện lại từ sai' : dirLabel;
-  document.getElementById('quizModeBadge').innerText = quizDir === 'vi-en' ? '🇻🇳 → 🇬🇧' : '🇬🇧 → 🇻🇳';
+  const titleEl = document.getElementById('quizTitle');
+  if (titleEl) titleEl.innerText = quizInErrorLoop ? '🔁 Luyện lại từ sai' : dirLabel;
+  const modeBadge = document.getElementById('quizModeBadge');
+  if (modeBadge) modeBadge.innerText = quizDir === 'vi-en' ? '🇻🇳 → 🇬🇧' : '🇬🇧 → 🇻🇳';
 
   // Update progress
   const progressPct = total > 0 ? (done / total) * 100 : 0;
-  document.getElementById('quizProgressFill').style.width = progressPct + '%';
-  document.getElementById('quizProgressLabel').innerText = `${done} / ${total}${errorLeft > 0 ? ` · 🔁 ${errorLeft}` : ''}`;
+  const fillEl = document.getElementById('quizProgressFill');
+  const labelEl = document.getElementById('quizProgressLabel');
+  if (fillEl) fillEl.style.width = progressPct + '%';
+  if (labelEl) labelEl.innerText = `${done} / ${total}${errorLeft > 0 ? ` · 🔁 ${errorLeft}` : ''}`;
 
   // Prompt
   const isViEn = quizDir === 'vi-en';
-  document.getElementById('quizPromptLabel').innerText = isViEn
+  const promptLabelEl = document.getElementById('quizPromptLabel');
+  if (promptLabelEl) promptLabelEl.innerText = isViEn
     ? 'Từ tiếng Anh tương ứng với nghĩa dưới đây là gì?'
     : 'Nghĩa tiếng Việt của từ sau là gì?';
-  document.getElementById('quizPromptWord').innerText = isViEn ? w.mean : w.word;
-  document.getElementById('quizPromptHint').innerText = isViEn
+  if (promptWord) promptWord.innerText = isViEn ? w.mean : w.word;
+  if (promptHint) promptHint.innerText = isViEn
     ? (w.pos ? `(${w.pos})` : '')
     : (w.phone ? w.phone : '');
-  document.getElementById('quizTopicChip').innerText = w.topic;
+  const topicChip = document.getElementById('quizTopicChip');
+  if (topicChip) topicChip.innerText = w.topic;
 
   // Hide feedback, next btn
   const fb = document.getElementById('quizFeedback');
-  fb.className = 'quiz-feedback';
-  document.getElementById('quizNextBtn').className = 'quiz-next-btn';
+  if (fb) fb.className = 'quiz-feedback';
+  const nextBtn = document.getElementById('quizNextBtn');
+  if (nextBtn) nextBtn.className = 'quiz-next-btn';
 
   // Render question type
   if (quizType === 'mc') {
@@ -2710,10 +3019,10 @@ function renderQuizQuestion() {
 }
 
 function hideAllQuizAnswerAreas() {
-  document.getElementById('quizChoices').style.display = 'none';
-  document.getElementById('quizInputWrap').style.display = 'none';
-  document.getElementById('quizDictationWrap').style.display = 'none';
-  document.getElementById('quizFillBlankWrap').style.display = 'none';
+  ['quizChoices','quizInputWrap','quizDictationWrap','quizFillBlankWrap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
 }
 
 function renderMCQuestion(correctWord) {
@@ -3024,14 +3333,19 @@ function handleMCAnswer(chosenId, correctId) {
 
 function showQuizFeedback(isCorrect, w) {
   const fb = document.getElementById('quizFeedback');
-  fb.className = 'quiz-feedback show ' + (isCorrect ? 'correct-fb' : 'wrong-fb');
-  document.getElementById('quizFeedbackTitle').innerText = isCorrect ? '✅ Chính xác!' : '❌ Chưa đúng';
-  document.getElementById('quizFeedbackAnswer').innerText = isCorrect
+  if (fb) fb.className = 'quiz-feedback show ' + (isCorrect ? 'correct-fb' : 'wrong-fb');
+  const titleEl = document.getElementById('quizFeedbackTitle');
+  if (titleEl) titleEl.innerText = isCorrect ? '✅ Chính xác!' : '❌ Chưa đúng';
+  const answerEl = document.getElementById('quizFeedbackAnswer');
+  if (answerEl) answerEl.innerText = isCorrect
     ? (quizDir === 'vi-en' ? w.word : w.mean)
     : `Đáp án đúng: ${quizDir === 'vi-en' ? w.word : w.mean}`;
-  document.getElementById('quizFeedbackPhone').innerText = w.phone || '';
-  document.getElementById('quizFeedbackEg').innerText = w.eg ? `"${w.eg}"` : '';
-  document.getElementById('quizNextBtn').className = 'quiz-next-btn show';
+  const phoneEl = document.getElementById('quizFeedbackPhone');
+  if (phoneEl) phoneEl.innerText = w.phone || '';
+  const egEl = document.getElementById('quizFeedbackEg');
+  if (egEl) egEl.innerText = w.eg ? `"${w.eg}"` : '';
+  const nextBtn = document.getElementById('quizNextBtn');
+  if (nextBtn) nextBtn.className = 'quiz-next-btn show';
 }
 
 function recordAnswer(isCorrect) {
@@ -3072,8 +3386,9 @@ function recordAnswer(isCorrect) {
       saveStorage();
     }
     // Update retry badge
-    document.getElementById('quizRetryBadge').style.display = 'flex';
-    document.getElementById('quizRetryCount').innerText = quizErrorPool.length;
+    document.getElementById('quizRetryBadge')?.setAttribute('style', 'display:flex');
+    const retryCountEl = document.getElementById('quizRetryCount');
+    if (retryCountEl) retryCountEl.innerText = quizErrorPool.length;
   }
   quizSessionDone.push({ word: w, correct: isCorrect });
 }
@@ -3083,28 +3398,29 @@ function quizNext() {
 }
 
 function showQuizResults() {
-  document.getElementById('quizBody').style.display = 'none';
+  const body = document.getElementById('quizBody');
+  if (body) body.style.display = 'none';
   const results = document.getElementById('quizResults');
-  results.classList.add('show');
+  if (results) results.classList.add('show');
 
-  const total = quizSessionDone.length;
-  const correct = quizSessionDone.filter(d => d.correct).length;
-  const wrong = quizSessionDone.filter(d => !d.correct).length;
-  const pct = total > 0 ? Math.round((quizCorrectCount / quizTotalShown) * 100) : 0;
+  const pct = quizTotalShown > 0 ? Math.round((quizCorrectCount / quizTotalShown) * 100) : 0;
 
-  document.getElementById('quizScorePct').innerText = pct + '%';
-  document.getElementById('qrb-c').innerText = quizCorrectCount;
-  document.getElementById('qrb-w').innerText = quizWrongCount;
-  document.getElementById('qrb-r').innerText = quizErrorCorrectionCount;
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  setEl('quizScorePct', pct + '%');
+  setEl('qrb-c', quizCorrectCount);
+  setEl('qrb-w', quizWrongCount);
+  setEl('qrb-r', quizErrorCorrectionCount);
 
   const titles = pct >= 90 ? '🏆 Xuất sắc!' : pct >= 70 ? '👍 Tốt lắm!' : pct >= 50 ? '💪 Cố lên!' : '📚 Ôn thêm nhé!';
-  document.getElementById('quizResultTitle').innerText = titles;
+  setEl('quizResultTitle', titles);
 
   // Show "retry wrongs" button if there were any wrongs
   const wrongWords = quizSessionDone.filter(d => !d.correct);
   const retryBtn = document.getElementById('quizRetryWrongsBtn');
-  retryBtn.style.display = wrongWords.length > 0 ? 'block' : 'none';
-  if (wrongWords.length > 0) retryBtn.innerText = `🔁 Ôn ${wrongWords.length} từ sai`;
+  if (retryBtn) {
+    retryBtn.style.display = wrongWords.length > 0 ? 'block' : 'none';
+    if (wrongWords.length > 0) retryBtn.innerText = `🔁 Ôn ${wrongWords.length} từ sai`;
+  }
 
   // Save stats
   const stats = loadQuizStats();
@@ -3234,9 +3550,170 @@ function renderStatsModal() {
 }
 
 
+/* ============================================================
+   SETTINGS & AUTH
+   ============================================================ */
+
+// --- Account state (local simulation; replace with real backend as needed) ---
+let currentUser = null;
+
+function loadUserState() {
+  try {
+    const saved = localStorage.getItem('toeic_user');
+    if (saved) currentUser = JSON.parse(saved);
+  } catch (_) { currentUser = null; }
+}
+
+function saveUserState() {
+  if (currentUser) localStorage.setItem('toeic_user', JSON.stringify(currentUser));
+  else localStorage.removeItem('toeic_user');
+}
+
+function updateAccountUI() {
+  const loggedOut = document.getElementById('settingsLoggedOut');
+  const loggedIn = document.getElementById('settingsLoggedIn');
+  if (!loggedOut || !loggedIn) return;
+  if (currentUser) {
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'block';
+    const initials = (currentUser.name || '?').charAt(0).toUpperCase();
+    document.getElementById('settingsAvatarIcon').innerText = initials;
+    document.getElementById('settingsDisplayName').innerText = currentUser.name || 'Người dùng';
+    document.getElementById('settingsDisplayEmail').innerText = currentUser.email || '';
+  } else {
+    loggedOut.style.display = 'block';
+    loggedIn.style.display = 'none';
+  }
+}
+
+function openAuthModal(tab = 'signin') {
+  closeModal('settingsModal');
+  switchAuthTab(tab);
+  openModal('authModal');
+}
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+  const tabId = tab === 'signin' ? 'authTabSignin' : 'authTabSignup';
+  const panelId = tab === 'signin' ? 'authPanelSignin' : 'authPanelSignup';
+  document.getElementById(tabId)?.classList.add('active');
+  document.getElementById(panelId)?.classList.add('active');
+}
+
+function handleSignIn() {
+  const email = document.getElementById('signin-email').value.trim();
+  const password = document.getElementById('signin-password').value;
+  if (!email || !password) { alert('Vui lòng nhập email và mật khẩu.'); return; }
+  // Simulate sign-in (replace with real auth)
+  currentUser = { name: email.split('@')[0], email };
+  saveUserState();
+  updateAccountUI();
+  closeModal('authModal');
+  alert(`✅ Đăng nhập thành công! Xin chào ${currentUser.name}.`);
+}
+
+function handleSignUp() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  if (!name || !email || !password) { alert('Vui lòng điền đầy đủ thông tin.'); return; }
+  if (password.length < 8) { alert('Mật khẩu phải có ít nhất 8 ký tự.'); return; }
+  // Simulate sign-up (replace with real auth)
+  currentUser = { name, email };
+  saveUserState();
+  updateAccountUI();
+  closeModal('authModal');
+  alert(`🎉 Tạo tài khoản thành công! Xin chào ${name}.`);
+}
+
+function handleGoogleSignIn() {
+  // Placeholder for Google OAuth integration
+  alert('Tính năng đăng nhập bằng Google sẽ sớm ra mắt. Vui lòng dùng email & mật khẩu.');
+}
+
+function signOut() {
+  if (!confirm('Bạn có chắc muốn đăng xuất?')) return;
+  currentUser = null;
+  saveUserState();
+  updateAccountUI();
+  closeModal('profileModal');
+  closeModal('settingsModal');
+  alert('Đã đăng xuất.');
+}
+
+function openAccountProfile() {
+  if (!currentUser) return;
+  document.getElementById('profileName').innerText = currentUser.name || '';
+  document.getElementById('profileEmail').innerText = currentUser.email || '';
+  document.getElementById('profileAvatar').innerText = (currentUser.name || '?').charAt(0).toUpperCase();
+  document.getElementById('profile-name-input').value = currentUser.name || '';
+  closeModal('settingsModal');
+  openModal('profileModal');
+}
+
+function saveProfile() {
+  const newName = document.getElementById('profile-name-input').value.trim();
+  if (!newName) { alert('Tên không được để trống.'); return; }
+  currentUser.name = newName;
+  saveUserState();
+  updateAccountUI();
+  document.getElementById('profileName').innerText = newName;
+  document.getElementById('profileAvatar').innerText = newName.charAt(0).toUpperCase();
+  alert('✅ Đã cập nhật hồ sơ.');
+}
+
+// Toggle Test section accordion
+function toggleTestSection() {
+  const grid = document.getElementById('testModeGrid');
+  const chevron = document.getElementById('testSectionChevron');
+  const isOpen = grid.style.display !== 'none';
+  grid.style.display = isOpen ? 'none' : 'grid';
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+// Quick-start a quiz mode directly from the Test section
+function quickStartQuiz(type, dir) {
+  quizDir = dir;
+  quizType = type;
+  quizWordCount = 10;
+  quizTopicFilter = 'ALL';
+
+  const pool = getQuizPool('ALL');
+  if (pool.length < 2) {
+    alert('Cần ít nhất 2 từ để bắt đầu kiểm tra.');
+    return;
+  }
+
+  let eligiblePool = pool;
+  if (type === 'fillblank') {
+    eligiblePool = pool.filter(w => w.eg && w.eg.trim().length > 0);
+    if (eligiblePool.length < 2) {
+      alert('Cần ít nhất 2 từ có câu ví dụ. Hãy dùng "Lấy phiên âm tự động" để bổ sung.');
+      return;
+    }
+  }
+
+  const capped = Math.min(10, eligiblePool.length);
+  quizQueue = shuffleArray(eligiblePool).slice(0, capped);
+  quizErrorPool = [];
+  quizSessionDone = [];
+  quizQueueIndex = 0;
+  quizCorrectCount = 0;
+  quizWrongCount = 0;
+  quizErrorCorrectionCount = 0;
+  quizTotalShown = 0;
+  quizInErrorLoop = false;
+  quizLastConfig = { dir, type, topic: 'ALL', count: 10 };
+
+  openQuizOverlay();
+  renderQuizQuestion();
+}
+
 window.onload = () => {
   initTheme();
   initStorage();
+  loadUserState();
   loadEnglishVoices();
   if ('speechSynthesis' in window) {
     window.speechSynthesis.onvoiceschanged = loadEnglishVoices;
@@ -3245,6 +3722,7 @@ window.onload = () => {
   renderCard();
   populateQuizTopics();
   checkPwaPrompt();
+  updateAccountUI();
 
   // Mở khoá AudioContext xử lý phát âm ngay từ cử chỉ chạm/click đầu tiên (bắt buộc trên iOS Safari).
   window.addEventListener('pointerdown', () => { getPronunciationAudioCtx(); }, { once: true });
