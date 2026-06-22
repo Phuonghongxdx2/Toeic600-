@@ -545,22 +545,10 @@
     margin-top: 8px; font-style: italic;
   }
 
-  /* Đảm bảo nội dung chính (header → nav) luôn lấp đầy ít nhất 1 màn hình,
-     để khối "Chế độ kiểm tra" luôn nằm dưới lằn cuộn (fold) và không bị
-     dồn/đè lên các phần tử khác hoặc lên vùng an toàn của thiết bị. */
-  .above-fold {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-  }
-  /* Đẩy nav xuống cuối khối above-fold trên màn hình lớn, để khoảng trống
-     (nếu có) nằm ngay phía trên Test Mode chứ không co cụm các phần tử lại */
-  .above-fold .nav { margin-top: auto; }
-
   /* ============== TEST SECTION ROW ============== */
   .test-section {
-    margin-top: 18px;
-    padding: 16px 20px calc(env(safe-area-inset-bottom) + 24px);
+    margin-top: 8px;
+    padding: 16px 20px calc(env(safe-area-inset-bottom) + 18px);
     border-top: 1px solid var(--border);
     background: var(--bg);
   }
@@ -636,7 +624,6 @@
 </head>
 <body>
 
-  <div class="above-fold">
   <header>
     <div>
       <h1>TOEIC <span>600</span></h1>
@@ -720,7 +707,6 @@
     </div>
     <button class="navbtn" onclick="openModal('addModal')">➕ Thêm từ</button>
   </div>
-  </div><!-- /.above-fold -->
 
   <!-- TEST SECTION (collapsible) -->
   <div class="test-section">
