@@ -94,16 +94,19 @@
 
   /* Filter Slider chips */
   .filter-row {
-    display: flex; gap: 8px; overflow-x: auto; padding: 4px 20px 12px; scroll-behavior: smooth;
+    display: flex; align-items: center; gap: 8px; overflow-x: auto; overflow-y: visible;
+    padding: 4px 20px 14px; scroll-behavior: smooth;
+    position: relative; z-index: 1; isolation: isolate;
   }
   .filter-row::-webkit-scrollbar { display: none; }
   .chip {
-    flex: 0 0 auto; font-size: 13px; padding: 7px 14px; border-radius: 20px;
+    flex: 0 0 auto; font-size: 13px; line-height: 1.4; white-space: nowrap; min-height: 32px;
+    display: flex; align-items: center; padding: 7px 14px; border-radius: 20px;
     background: var(--panel); border: 1px solid var(--border); color: var(--sub); font-weight: 600; cursor: pointer;
   }
   .chip.active { background: var(--accent); color: var(--filter-active-text); border-color: var(--accent); }
 
-  .topic-picker-wrap { padding: 0 20px 10px; }
+  .topic-picker-wrap { padding: 6px 20px 10px; position: relative; z-index: 1; }
   .topic-picker {
     width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--border);
     border-radius: 14px; padding: 11px 14px; font-size: 14px; font-weight: 700; outline: none;
@@ -365,10 +368,10 @@
   }
 
   /* Input area */
-  .quiz-input-wrap { position: relative; }
+  .quiz-input-wrap { display: flex; flex-direction: column; gap: 12px; }
   .quiz-input {
     width: 100%; background: var(--panel); border: 2px solid var(--border);
-    border-radius: 16px; padding: 14px 50px 14px 16px;
+    border-radius: 16px; padding: 14px 16px;
     color: var(--text); font-size: 16px; outline: none;
     transition: border-color 0.2s;
   }
@@ -376,11 +379,13 @@
   .quiz-input.correct { border-color: var(--green); background: rgba(76,175,80,0.06); }
   .quiz-input.wrong { border-color: var(--red); background: rgba(244,67,54,0.06); }
   .quiz-submit-btn {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    background: var(--accent2); color: #fff; border: none; border-radius: 10px;
-    width: 34px; height: 34px; font-size: 16px; cursor: pointer;
+    width: 100%; background: #8BC34A; color: #fff; border: none; border-radius: 999px;
+    padding: 15px 0; font-size: 15px; font-weight: 800; letter-spacing: 0.2px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(139,195,74,0.35);
+    transition: transform 0.1s, box-shadow 0.15s;
   }
+  .quiz-submit-btn:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(139,195,74,0.3); }
 
   /* Feedback area */
   .quiz-feedback {
@@ -540,9 +545,22 @@
     margin-top: 8px; font-style: italic;
   }
 
+  /* Đảm bảo nội dung chính (header → nav) luôn lấp đầy ít nhất 1 màn hình,
+     để khối "Chế độ kiểm tra" luôn nằm dưới lằn cuộn (fold) và không bị
+     dồn/đè lên các phần tử khác hoặc lên vùng an toàn của thiết bị. */
+  .above-fold {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  /* Đẩy nav xuống cuối khối above-fold trên màn hình lớn, để khoảng trống
+     (nếu có) nằm ngay phía trên Test Mode chứ không co cụm các phần tử lại */
+  .above-fold .nav { margin-top: auto; }
+
   /* ============== TEST SECTION ROW ============== */
   .test-section {
-    padding: 10px 20px 16px;
+    margin-top: 18px;
+    padding: 16px 20px calc(env(safe-area-inset-bottom) + 24px);
     border-top: 1px solid var(--border);
     background: var(--bg);
   }
@@ -618,6 +636,7 @@
 </head>
 <body>
 
+  <div class="above-fold">
   <header>
     <div>
       <h1>TOEIC <span>600</span></h1>
@@ -701,6 +720,7 @@
     </div>
     <button class="navbtn" onclick="openModal('addModal')">➕ Thêm từ</button>
   </div>
+  </div><!-- /.above-fold -->
 
   <!-- TEST SECTION (collapsible) -->
   <div class="test-section">
@@ -833,7 +853,7 @@
       <!-- Input mode -->
       <div class="quiz-input-wrap" id="quizInputWrap" style="display:none;">
         <input type="text" class="quiz-input" id="quizInput" placeholder="Gõ câu trả lời..." autocomplete="off" autocorrect="off" spellcheck="false">
-        <button class="quiz-submit-btn" onclick="submitQuizInput()">↩</button>
+        <button class="quiz-submit-btn" onclick="submitQuizInput()">Kiểm tra</button>
       </div>
 
       <!-- Dictation mode -->
@@ -847,7 +867,7 @@
         </div>
         <div class="quiz-input-wrap" style="margin-top:10px;">
           <input type="text" class="quiz-input" id="quizDictationInput" placeholder="Gõ từ tiếng Anh vừa nghe..." autocomplete="off" autocorrect="off" spellcheck="false">
-          <button class="quiz-submit-btn" onclick="submitDictationInput()">↩</button>
+          <button class="quiz-submit-btn" onclick="submitDictationInput()">Kiểm tra</button>
         </div>
       </div>
 
@@ -857,7 +877,7 @@
         <div class="quiz-fillblank-meta" id="quizFillBlankMeta"></div>
         <div class="quiz-input-wrap" style="margin-top:10px;">
           <input type="text" class="quiz-input" id="quizFillBlankInput" placeholder="Điền từ còn thiếu..." autocomplete="off" autocorrect="off" spellcheck="false">
-          <button class="quiz-submit-btn" onclick="submitFillBlankInput()">↩</button>
+          <button class="quiz-submit-btn" onclick="submitFillBlankInput()">Kiểm tra</button>
         </div>
       </div>
 
