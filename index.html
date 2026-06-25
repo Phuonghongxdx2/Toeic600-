@@ -176,7 +176,7 @@
     width: 100%; max-width: 400px; height: 300px;
     position: relative; transform-style: preserve-3d;
     transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-    cursor: grab; touch-action: pan-y; user-select: none;
+    cursor: grab; touch-action: manipulation; user-select: none;
     will-change: transform;
   }
   .card-box.dragging { transition: none; }
@@ -1894,8 +1894,8 @@ let isFlippedAtDragStart = false;
 let lastMoveX = 0;
 let lastMoveT = 0;
 let swipeVelocity = 0;
-const SWIPE_DISTANCE_THRESHOLD = 55;   // px tối thiểu để xem là vuốt thành công (giảm để vuốt nhẹ vẫn nhận)
-const SWIPE_VELOCITY_THRESHOLD = 0.35; // px/ms — vuốt nhanh (vẩy tay) cũng được tính, nhạy hơn
+const SWIPE_DISTANCE_THRESHOLD = 30;   // px tối thiểu để xem là vuốt thành công (giảm để vuốt nhẹ vẫn nhận)
+const SWIPE_VELOCITY_THRESHOLD = 0.18; // px/ms — vuốt nhanh (vẩy tay) cũng được tính, nhạy hơn
 
 function getCardEl() { return document.getElementById('card'); }
 
@@ -1931,7 +1931,7 @@ function moveCardSwipe(event) {
   // Ngưỡng kích hoạt thấp hơn để vuốt nhẹ vẫn được nhận ngay, nhưng vẫn yêu cầu
   // chuyển động ngang rõ rệt hơn chuyển động dọc để không ảnh hưởng cuộn trang.
   if (!isDragging) {
-    if (Math.abs(deltaX) < 4 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.1) return;
+    if (Math.abs(deltaX) < 2 || Math.abs(deltaX) <= Math.abs(deltaY) * 0.7) return;
     isDragging = true;
     card.classList.add('dragging');
   }
