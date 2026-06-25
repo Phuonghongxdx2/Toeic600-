@@ -1894,8 +1894,8 @@ let isFlippedAtDragStart = false;
 let lastMoveX = 0;
 let lastMoveT = 0;
 let swipeVelocity = 0;
-const SWIPE_DISTANCE_THRESHOLD = 90;   // px tối thiểu để xem là vuốt thành công
-const SWIPE_VELOCITY_THRESHOLD = 0.55; // px/ms — vuốt nhanh (vẩy tay) cũng được tính
+const SWIPE_DISTANCE_THRESHOLD = 55;   // px tối thiểu để xem là vuốt thành công (giảm để vuốt nhẹ vẫn nhận)
+const SWIPE_VELOCITY_THRESHOLD = 0.35; // px/ms — vuốt nhanh (vẩy tay) cũng được tính, nhạy hơn
 
 function getCardEl() { return document.getElementById('card'); }
 
@@ -1928,8 +1928,10 @@ function moveCardSwipe(event) {
   const deltaY = event.clientY - swipeStartY;
 
   // Chỉ bắt đầu kéo khi xác định rõ là cử chỉ ngang (tránh cản cuộn dọc).
+  // Ngưỡng kích hoạt thấp hơn để vuốt nhẹ vẫn được nhận ngay, nhưng vẫn yêu cầu
+  // chuyển động ngang rõ rệt hơn chuyển động dọc để không ảnh hưởng cuộn trang.
   if (!isDragging) {
-    if (Math.abs(deltaX) < 8 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    if (Math.abs(deltaX) < 4 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.1) return;
     isDragging = true;
     card.classList.add('dragging');
   }
@@ -1941,7 +1943,7 @@ function moveCardSwipe(event) {
   lastMoveT = event.timeStamp;
 
   // Hiệu ứng đàn hồi nhẹ khi kéo quá xa, theo dõi ngón tay tự nhiên hơn.
-  const rubberDeltaX = deltaX * (1 - Math.min(Math.abs(deltaX) / 900, 0.35));
+  const rubberDeltaX = deltaX * (1 - Math.min(Math.abs(deltaX) / 1100, 0.3));
   const rotate = Math.max(-14, Math.min(14, rubberDeltaX / 14));
   const liftY = Math.min(Math.abs(deltaX) * 0.04, 14);
   const baseRotateY = isFlippedAtDragStart ? 180 : 0;
@@ -1972,7 +1974,7 @@ function endCardSwipe(event) {
   card.classList.remove('dragging');
   resetSwipeHints();
 
-  const isFastFlick = Math.abs(swipeVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > 24;
+  const isFastFlick = Math.abs(swipeVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > 16;
   const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY);
 
   if (!isFastFlick && !isFarEnough) {
