@@ -176,7 +176,7 @@
     width: 100%; max-width: 400px; height: 300px;
     position: relative; transform-style: preserve-3d;
     transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-    cursor: grab; touch-action: manipulation; user-select: none;
+    cursor: grab; touch-action: pan-y; user-select: none;
     will-change: transform;
   }
   .card-box.dragging { transition: none; }
@@ -1890,12 +1890,14 @@ let swipeStartY = 0;
 let swipePointerId = null;
 let suppressCardClick = false;
 let isDragging = false;
+let isAnimatingOut = false;     // true trong lúc thẻ đang bay ra / thẻ mới đang trượt vào
 let isFlippedAtDragStart = false;
 let lastMoveX = 0;
 let lastMoveT = 0;
 let swipeVelocity = 0;
-const SWIPE_DISTANCE_THRESHOLD = 25;   // px tối thiểu để xem là vuốt thành công (giảm để vuốt nhẹ vẫn nhận)
-const SWIPE_VELOCITY_THRESHOLD = 0.15; // px/ms — vuốt nhanh (vẩy tay) cũng được tính, nhạy hơn
+const SWIPE_DISTANCE_THRESHOLD = 90;   // px tối thiểu để xem là vuốt thành công
+const SWIPE_VELOCITY_THRESHOLD = 0.55; // px/ms — vuốt nhanh (vẩy tay) cũng được tính
+const DRAG_LOCK_PX = 5;                // Đã giảm từ 8 → 5: chỉ cần lệch ngang rất nhỏ là "dính" kéo
 
 function getCardEl() { return document.getElementById('card'); }
 
@@ -1904,11 +1906,13 @@ function handleCardClick() {
     suppressCardClick = false;
     return;
   }
+  if (isAnimatingOut) return; // tránh lật thẻ trong lúc thẻ đang chạy animation chuyển
   flipCard();
 }
 
 function startCardSwipe(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (isAnimatingOut) return; // chặn bắt đầu vuốt mới khi thẻ trước chưa "yên", tránh giật
   const card = getCardEl();
   swipeStartX = event.clientX;
   swipeStartY = event.clientY;
@@ -1928,10 +1932,12 @@ function moveCardSwipe(event) {
   const deltaY = event.clientY - swipeStartY;
 
   // Chỉ bắt đầu kéo khi xác định rõ là cử chỉ ngang (tránh cản cuộn dọc).
-  // Ngưỡng kích hoạt thấp hơn để vuốt nhẹ vẫn được nhận ngay, nhưng vẫn yêu cầu
-  // chuyển động ngang rõ rệt hơn chuyển động dọc để không ảnh hưởng cuộn trang.
+  // ĐÃ NỚI ĐIỀU KIỆN: trước đây yêu cầu |dx| > |dy| tuyệt đối khiến vuốt nhẹ/run tay
+  // nhẹ không "dính" được (do dao động dọc tự nhiên lúc mới đặt tay). Giờ chỉ chặn khi
+  // RÕ RÀNG là vuốt dọc (dọc vượt ngang khá nhiều), còn lại cho khoá kéo sớm hơn.
   if (!isDragging) {
-    if (Math.abs(deltaX) < 2 || Math.abs(deltaX) <= Math.abs(deltaY) * 0.7) return;
+    if (Math.abs(deltaX) < DRAG_LOCK_PX) return;
+    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) return; // rõ ràng là vuốt dọc → bỏ qua
     isDragging = true;
     card.classList.add('dragging');
   }
@@ -1943,13 +1949,15 @@ function moveCardSwipe(event) {
   lastMoveT = event.timeStamp;
 
   // Hiệu ứng đàn hồi nhẹ khi kéo quá xa, theo dõi ngón tay tự nhiên hơn.
-  const rubberDeltaX = deltaX;
+  const rubberDeltaX = deltaX * (1 - Math.min(Math.abs(deltaX) / 900, 0.35));
   const rotate = Math.max(-14, Math.min(14, rubberDeltaX / 14));
   const liftY = Math.min(Math.abs(deltaX) * 0.04, 14);
-  const baseRotateY = isFlippedAtDragStart ? 180 : 0;
+  // Chỉ thêm rotateY khi thẻ đang ở mặt sau — tránh ép trình duyệt dựng layer 3D
+  // không cần thiết khi thẻ đang ở mặt trước (đỡ tốn GPU, kéo mượt hơn trên máy yếu).
+  const rotateYPart = isFlippedAtDragStart ? ' rotateY(180deg)' : '';
 
   card.style.transform =
-    `translate3d(${rubberDeltaX}px, ${-liftY}px, 0) rotate(${rotate}deg) rotateY(${baseRotateY}deg)`;
+    `translate3d(${rubberDeltaX}px, ${-liftY}px, 0) rotate(${rotate}deg)${rotateYPart}`;
 
   // Gợi ý hướng hiện dần theo khoảng cách kéo.
   const progress = Math.min(Math.abs(rubberDeltaX) / SWIPE_DISTANCE_THRESHOLD, 1);
@@ -1974,7 +1982,7 @@ function endCardSwipe(event) {
   card.classList.remove('dragging');
   resetSwipeHints();
 
-  const isFastFlick = Math.abs(swipeVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > 16;
+  const isFastFlick = Math.abs(swipeVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > 24;
   const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY);
 
   if (!isFastFlick && !isFarEnough) {
@@ -1984,11 +1992,13 @@ function endCardSwipe(event) {
   }
 
   suppressCardClick = true;
+  isAnimatingOut = true;
   const direction = deltaX < 0 ? -1 : 1; // -1: sang trái (tiếp theo), 1: sang phải (trước đó)
   const step = direction < 0 ? 1 : -1;
   const baseRotateY = isFlippedAtDragStart ? 180 : 0;
   const flyX = direction < 0 ? -window.innerWidth : window.innerWidth;
   const flyRotate = direction < 0 ? -18 : 18;
+  const enterX = -flyX * 0.22; // thẻ mới sẽ lệch nhẹ ngược hướng bay ra rồi trượt vào giữa
 
   // Bay ra mượt mà bằng transition CSS thật (không dùng keyframes cứng).
   card.style.transition = 'transform 0.32s cubic-bezier(0.36, 0, 0.66, -0.05), opacity 0.32s ease';
@@ -1996,11 +2006,29 @@ function endCardSwipe(event) {
   card.style.opacity = '0';
 
   setTimeout(() => {
-    card.style.transition = '';
+    // QUAN TRỌNG: tắt transition TRƯỚC khi đổi nội dung & bỏ class "flipped".
+    // Trước đây bỏ "flipped" trong lúc transition mặc định (0.45s) còn đang hoạt động
+    // khiến thẻ tự lật ngược lại đúng lúc thẻ mới xuất hiện, chồng lấn với animation
+    // bay ra → cảm giác giật, không mượt. Giờ đổi nội dung tức thời, không animate.
+    card.style.transition = 'none';
+    card.classList.remove('flipped');
+    stepCard(step);
+
+    // Đặt thẻ mới ở vị trí "chờ vào" (lệch nhẹ + mờ), chưa animate.
+    card.style.transform = `translate3d(${enterX}px, 0, 0)`;
+    card.style.opacity = '0';
+    card.offsetHeight; // ép trình duyệt reflow ngay để "chốt" trạng thái chờ trước khi animate
+
+    // Bật lại transition và cho thẻ mới trượt nhẹ vào vị trí + fade in — mượt, không xung đột.
+    card.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease';
     card.style.transform = '';
     card.style.opacity = '';
-    stepCard(step);
-    suppressCardClick = false;
+
+    setTimeout(() => {
+      card.style.transition = '';
+      isAnimatingOut = false;
+      suppressCardClick = false;
+    }, 280);
   }, 320);
 }
 
