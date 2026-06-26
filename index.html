@@ -1887,6 +1887,7 @@ function updateGlobalStats() {
 /* ============== HỆ THỐNG VUỐT THẺ MƯỢT (THEO THỜI GIAN THỰC) ============== */
 let swipeStartX = 0;
 let swipeStartY = 0;
+let swipeStartT = 0;
 let swipePointerId = null;
 let suppressCardClick = false;
 let isDragging = false;
@@ -1895,9 +1896,11 @@ let isFlippedAtDragStart = false;
 let lastMoveX = 0;
 let lastMoveT = 0;
 let swipeVelocity = 0;
-const SWIPE_DISTANCE_THRESHOLD = 90;   // px tối thiểu để xem là vuốt thành công
-const SWIPE_VELOCITY_THRESHOLD = 0.55; // px/ms — vuốt nhanh (vẩy tay) cũng được tính
-const DRAG_LOCK_PX = 5;                // Đã giảm từ 8 → 5: chỉ cần lệch ngang rất nhỏ là "dính" kéo
+let peakVelocity = 0;           // vận tốc LỚN NHẤT ghi nhận được trong cả cử chỉ
+const SWIPE_DISTANCE_THRESHOLD = 65;    // giảm từ 90 → 65: không cần kéo xa mới qua thẻ
+const SWIPE_VELOCITY_THRESHOLD = 0.28;  // giảm từ 0.55 → 0.28: chỉ cần phẩy nhẹ là đủ
+const SWIPE_MIN_FLICK_DISTANCE = 14;    // lệch tối thiểu để không nhận nhầm cú chạm/tay run là phẩy
+const DRAG_LOCK_PX = 4;                 // chỉ cần lệch ngang rất nhỏ là "dính" kéo
 
 function getCardEl() { return document.getElementById('card'); }
 
@@ -1916,9 +1919,11 @@ function startCardSwipe(event) {
   const card = getCardEl();
   swipeStartX = event.clientX;
   swipeStartY = event.clientY;
+  swipeStartT = event.timeStamp;
   lastMoveX = event.clientX;
   lastMoveT = event.timeStamp;
   swipeVelocity = 0;
+  peakVelocity = 0;
   swipePointerId = event.pointerId;
   isDragging = false;
   isFlippedAtDragStart = card.classList.contains('flipped');
@@ -1944,7 +1949,12 @@ function moveCardSwipe(event) {
 
   // Tính vận tốc tức thời để nhận diện cú vẩy tay nhanh.
   const dt = Math.max(1, event.timeStamp - lastMoveT);
-  swipeVelocity = (event.clientX - lastMoveX) / dt;
+  const instVelocity = (event.clientX - lastMoveX) / dt;
+  swipeVelocity = instVelocity;
+  // Lưu vận tốc ĐỈNH trong toàn bộ cử chỉ: ngay trước khi nhả tay, ngón tay
+  // thường hơi chậm lại tự nhiên — nếu chỉ lấy mẫu cuối để xét "phẩy nhanh"
+  // sẽ luôn đánh giá thấp tốc độ thật, khiến phẩy nhẹ/nhanh bị coi là chưa đủ.
+  if (Math.abs(instVelocity) > Math.abs(peakVelocity)) peakVelocity = instVelocity;
   lastMoveX = event.clientX;
   lastMoveT = event.timeStamp;
 
@@ -1975,19 +1985,36 @@ function endCardSwipe(event) {
   const card = getCardEl();
   const deltaX = event.clientX - swipeStartX;
   const deltaY = event.clientY - swipeStartY;
-  swipePointerId = null;
+  const elapsed = Math.max(1, event.timeStamp - swipeStartT);
+  const avgVelocity = deltaX / elapsed; // vận tốc trung bình cả cử chỉ — vẫn dùng được
+  swipePointerId = null;               // dù cử chỉ quá nhanh, ít/không có pointermove
 
-  if (!isDragging) return;
+  const wasDragging = isDragging;
   isDragging = false;
   card.classList.remove('dragging');
   resetSwipeHints();
 
-  const isFastFlick = Math.abs(swipeVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > 24;
-  const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY);
+  // Nếu rõ ràng là cử chỉ dọc (đang cố cuộn trang) thì không tính là vuốt thẻ.
+  if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
+    if (wasDragging) card.style.transform = '';
+    return;
+  }
+
+  // QUAN TRỌNG: trước đây hàm này return ngay nếu isDragging chưa từng được set true
+  // (`if (!isDragging) return;`). Một cú phẩy tay rất nhanh/ngắn có thể chỉ sinh ra
+  // 0–1 sự kiện pointermove, khiến isDragging chưa kịp "khoá" trước khi pointerup tới,
+  // và toàn bộ cử chỉ bị huỷ dù vẩy rất nhanh. Giờ luôn xét theo độ lệch & vận tốc
+  // thực tế từ lúc đặt tay đến lúc nhả tay, không phụ thuộc cờ isDragging nữa.
+  const decisiveVelocity =
+    Math.abs(peakVelocity) > Math.abs(avgVelocity) ? peakVelocity : avgVelocity;
+
+  const isFastFlick = Math.abs(decisiveVelocity) > SWIPE_VELOCITY_THRESHOLD
+                       && Math.abs(deltaX) > SWIPE_MIN_FLICK_DISTANCE;
+  const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD;
 
   if (!isFastFlick && !isFarEnough) {
-    // Kéo không đủ xa → đàn hồi mượt trở lại vị trí gốc.
-    card.style.transform = '';
+    // Kéo không đủ xa và không đủ nhanh → đàn hồi mượt trở lại vị trí gốc.
+    if (wasDragging) card.style.transform = '';
     return;
   }
 
