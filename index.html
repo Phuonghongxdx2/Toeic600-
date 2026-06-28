@@ -174,17 +174,15 @@
   
   .card-box {
     width: 100%; max-width: 400px; height: 300px;
-    position: relative; transform-style: preserve-3d;
+    position: relative; transform-style: flat;
     transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
     cursor: grab; touch-action: pan-y; user-select: none;
     will-change: transform;
   }
-  .card-box.dragging { transition: none; }
+  .card-box.dragging { transition: none; transform-style: flat; }
   .card-box:active { cursor: grabbing; }
-  .card-box.flipped { transform: rotateY(180deg); }
-  /* Khi đang kéo thẻ mặt sau: CSS không thể kết hợp với inline transform,
-     nên JS sẽ tự thêm rotateY vào — xem applyDragFrame */
-  .card-box.flipped.dragging { transition: none; }
+  .card-box.flipped { transform: rotateY(180deg); transform-style: preserve-3d; }
+  .card-box.flipped.dragging { transition: none; transform-style: preserve-3d; }
 
   /* Lớp phủ gợi ý hướng vuốt (mượt, theo thời gian thực) */
   .swipe-indicator {
@@ -1945,9 +1943,14 @@ function applyDragFrame() {
   if (!isDragging) return;
   const card = getCardEl();
   const x = pendingDragX;
-  // Không xoay khi đang kéo — bám ngón tay 1:1 hoàn toàn như Quizlet
-  const flip = isFlippedAtDragStart ? ' rotateY(180deg)' : '';
-  card.style.transform = `translate3d(${x}px, 0, 0)${flip}`;
+  const rotate = Math.max(-6, Math.min(6, x * 0.018));
+  if (isFlippedAtDragStart) {
+    card.style.transformStyle = 'preserve-3d';
+    card.style.transform = `translate3d(${x}px, 0, 0) rotate(${rotate}deg) rotateY(180deg)`;
+  } else {
+    card.style.transformStyle = 'flat';
+    card.style.transform = `translate3d(${x}px, 0, 0) rotate(${rotate}deg)`;
+  }
 
   const abs = Math.abs(x);
   const progress = Math.min(abs / 60, 1);
