@@ -170,6 +170,7 @@
     display: flex; align-items: center; justify-content: center;
     padding: 10px 20px; perspective: 1000px;
     height: 340px; flex-shrink: 0;
+    touch-action: pan-y;
   }
   
   .card-box {
@@ -1891,8 +1892,7 @@ let swipeStartT = 0;
 let swipePointerId = null;
 let suppressCardClick = false;
 let isDragging = false;
-let isScrollingVertically = false; // true khi đã xác định cử chỉ là vuốt dọc → tự cuộn trang
-let lastScrollY = 0;               // clientY của frame trước, để tính delta tương đối
+let isScrollingVertically = false; // true khi đã xác định cử chỉ là vuốt dọc
 let isAnimatingOut = false;     // true trong lúc thẻ đang bay ra / thẻ mới đang trượt vào
 let isFlippedAtDragStart = false;
 let lastMoveX = 0;
@@ -1929,7 +1929,6 @@ function startCardSwipe(event) {
   swipePointerId = event.pointerId;
   isDragging = false;
   isScrollingVertically = false;
-  lastScrollY = 0;
   isFlippedAtDragStart = card.classList.contains('flipped');
   // KHÔNG setPointerCapture ngay — chờ xác định hướng cử chỉ trong moveCardSwipe
 }
@@ -1943,27 +1942,22 @@ function moveCardSwipe(event) {
   // Chưa xác định hướng → đợi ngón tay lệch đủ để phán đoán
   if (!isDragging && !isScrollingVertically) {
     const moved = Math.max(Math.abs(deltaX), Math.abs(deltaY));
-    if (moved < DRAG_LOCK_PX) return; // chưa đủ lệch để phán đoán
+    if (moved < DRAG_LOCK_PX) return;
 
     if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
-      // Rõ ràng là vuốt dọc → chế độ tự cuộn trang, KHÔNG capture pointer
+      // Vuốt dọc → nhả capture, để browser scroll natively qua touch-action: pan-y của .main
       isScrollingVertically = true;
-      lastScrollY = event.clientY; // bắt đầu track từ vị trí hiện tại
+      try { card.releasePointerCapture?.(event.pointerId); } catch(e) {}
+      return;
     } else {
-      // Vuốt ngang → khoá kéo thẻ, capture pointer để không mất event
+      // Vuốt ngang → khoá kéo thẻ
       isDragging = true;
       card.classList.add('dragging');
       card.setPointerCapture?.(event.pointerId);
     }
   }
 
-  // Chế độ cuộn dọc: dùng scrollBy với delta tương đối giữa 2 frame → không rung
-  if (isScrollingVertically) {
-    const dy = lastScrollY - event.clientY;
-    lastScrollY = event.clientY;
-    window.scrollBy({ top: dy, behavior: 'instant' });
-    return;
-  }
+  if (isScrollingVertically) return;
 
   if (!isDragging) return;
 
