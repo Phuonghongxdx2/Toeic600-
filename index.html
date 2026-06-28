@@ -1889,30 +1889,54 @@ let swipeStartT = 0;
 let swipePointerId = null;
 let suppressCardClick = false;
 let isDragging = false;
-let isScrollingVertically = false; // true khi đã xác định cử chỉ là vuốt dọc
-let isAnimatingOut = false;     // true trong lúc thẻ đang bay ra / thẻ mới đang trượt vào
+let isScrollingVertically = false;
+let isAnimatingOut = false;
 let isFlippedAtDragStart = false;
 let lastMoveX = 0;
 let lastMoveT = 0;
 let swipeVelocity = 0;
-let peakVelocity = 0;           // vận tốc LỚN NHẤT ghi nhận được trong cả cử chỉ
+let peakVelocity = 0;
+let pendingDragX = 0;
+let rafPending = false;
 const SWIPE_DISTANCE_THRESHOLD = 65;
 const SWIPE_VELOCITY_THRESHOLD = 0.28;
 const SWIPE_MIN_FLICK_DISTANCE = 14;
-const DRAG_LOCK_PX = 2; // bắt dính ngay từ 2px lệch
+const DRAG_LOCK_PX = 4;
 
 function getCardEl() { return document.getElementById('card'); }
 
 function handleCardClick() {
-  if (suppressCardClick) {
-    suppressCardClick = false;
-    return;
-  }
+  if (suppressCardClick) { suppressCardClick = false; return; }
   if (isAnimatingOut) return;
   flipCard();
 }
 
-// ── Touch-based swipe (thay Pointer Events để có thể preventDefault có chọn lọc) ──
+function resetSwipeHints() {
+  document.getElementById('swipeNextHint').style.opacity = 0;
+  document.getElementById('swipePrevHint').style.opacity = 0;
+}
+
+// Chỉ ghi DOM đúng lúc browser sắp vẽ frame — tách hoàn toàn khỏi touch event
+function applyDragFrame() {
+  rafPending = false;
+  if (!isDragging) return;
+  const card = getCardEl();
+  const x = pendingDragX;
+  const rotate = Math.max(-6, Math.min(6, x * 0.018));
+  if (isFlippedAtDragStart) {
+    card.style.transformStyle = 'preserve-3d';
+    card.style.transform = `translate3d(${x}px,0,0) rotate(${rotate}deg) rotateY(180deg)`;
+  } else {
+    card.style.transformStyle = 'flat';
+    card.style.transform = `translate3d(${x}px,0,0) rotate(${rotate}deg)`;
+  }
+  const abs = Math.abs(x);
+  const progress = Math.min(abs / 60, 1);
+  document.getElementById('swipeNextHint').style.opacity = x < -8 ? progress : 0;
+  document.getElementById('swipePrevHint').style.opacity = x >  8 ? progress : 0;
+}
+
+// ── Touch events ──
 
 function startCardSwipe(event) {
   if (isAnimatingOut) return;
@@ -1930,49 +1954,13 @@ function startCardSwipe(event) {
   isFlippedAtDragStart = getCardEl().classList.contains('flipped');
 }
 
-let pendingDragX = 0;   // vị trí X mới nhất từ touchmove, chờ được vẽ
-let rafPending = false; // có rAF đang chờ chưa
-
-function resetSwipeHints() {
-  document.getElementById('swipeNextHint').style.opacity = 0;
-  document.getElementById('swipePrevHint').style.opacity = 0;
-}
-
-function applyDragFrame() {
-  rafPending = false;
-  if (!isDragging) return;
-  const card = getCardEl();
-  const x = pendingDragX;
-  const rotate = Math.max(-6, Math.min(6, x * 0.018));
-  if (isFlippedAtDragStart) {
-    card.style.transformStyle = 'preserve-3d';
-    card.style.transform = `translate3d(${x}px, 0, 0) rotate(${rotate}deg) rotateY(180deg)`;
-  } else {
-    card.style.transformStyle = 'flat';
-    card.style.transform = `translate3d(${x}px, 0, 0) rotate(${rotate}deg)`;
-  }
-
-  const abs = Math.abs(x);
-  const progress = Math.min(abs / 60, 1);
-  if (x < -8) {
-    document.getElementById('swipeNextHint').style.opacity = progress;
-    document.getElementById('swipePrevHint').style.opacity = 0;
-  } else if (x > 8) {
-    document.getElementById('swipePrevHint').style.opacity = progress;
-    document.getElementById('swipeNextHint').style.opacity = 0;
-  } else {
-    resetSwipeHints();
-  }
-}
-
 function moveCardSwipe(event) {
   if (event.touches.length !== 1) return;
   const t = event.touches[0];
-  const card = getCardEl();
   const deltaX = t.clientX - swipeStartX;
   const deltaY = t.clientY - swipeStartY;
 
-  // Đã xác định là dọc → không làm gì, để browser scroll
+  // Đã xác định dọc → không làm gì, browser tự scroll
   if (isScrollingVertically) return;
 
   if (!isDragging) {
@@ -1980,31 +1968,28 @@ function moveCardSwipe(event) {
     if (moved < DRAG_LOCK_PX) return;
 
     if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
+      // Dọc rõ → thả cho browser scroll, không preventDefault
       isScrollingVertically = true;
-      return; // không preventDefault → browser scroll
+      return;
     }
-    // Xác định ngang → preventDefault NGAY để chặn browser
+    // Ngang → preventDefault NGAY trước khi browser kịp commit scroll
     event.preventDefault();
     isDragging = true;
-    card.classList.add('dragging');
+    getCardEl().classList.add('dragging');
   } else {
     event.preventDefault();
   }
 
-  // Cập nhật vận tốc
   const now = event.timeStamp;
   const dt = Math.max(1, now - lastMoveT);
-  const instantV = (t.clientX - lastMoveX) / dt;
-  swipeVelocity = instantV * 0.4 + swipeVelocity * 0.6;
+  const iv = (t.clientX - lastMoveX) / dt;
+  swipeVelocity = iv * 0.4 + swipeVelocity * 0.6;
   if (Math.abs(swipeVelocity) > Math.abs(peakVelocity)) peakVelocity = swipeVelocity;
   lastMoveX = t.clientX;
   lastMoveT = now;
 
   pendingDragX = deltaX;
-  if (!rafPending) {
-    rafPending = true;
-    requestAnimationFrame(applyDragFrame);
-  }
+  if (!rafPending) { rafPending = true; requestAnimationFrame(applyDragFrame); }
 }
 
 function endCardSwipe(event) {
@@ -2023,17 +2008,13 @@ function endCardSwipe(event) {
 
   if (isScrollingVertically) { isScrollingVertically = false; return; }
   isScrollingVertically = false;
-
   if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
     if (wasDragging) card.style.transform = '';
     return;
   }
 
-  const decisiveVelocity =
-    Math.abs(peakVelocity) > Math.abs(avgVelocity) ? peakVelocity : avgVelocity;
-
-  const isFastFlick = Math.abs(decisiveVelocity) > SWIPE_VELOCITY_THRESHOLD
-                       && Math.abs(deltaX) > SWIPE_MIN_FLICK_DISTANCE;
+  const decisiveVelocity = Math.abs(peakVelocity) > Math.abs(avgVelocity) ? peakVelocity : avgVelocity;
+  const isFastFlick = Math.abs(decisiveVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > SWIPE_MIN_FLICK_DISTANCE;
   const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD;
 
   if (!isFastFlick && !isFarEnough) {
@@ -2050,18 +2031,18 @@ function endCardSwipe(event) {
   const flyRotate = direction < 0 ? -18 : 18;
   const enterX = -flyX * 0.22;
 
-  card.style.transition = 'transform 0.32s cubic-bezier(0.36, 0, 0.66, -0.05), opacity 0.32s ease';
-  card.style.transform = `translate3d(${flyX}px, -10px, 0) rotate(${flyRotate}deg) rotateY(${baseRotateY}deg)`;
+  card.style.transition = 'transform 0.32s cubic-bezier(0.36,0,0.66,-0.05), opacity 0.32s ease';
+  card.style.transform = `translate3d(${flyX}px,-10px,0) rotate(${flyRotate}deg) rotateY(${baseRotateY}deg)`;
   card.style.opacity = '0';
 
   setTimeout(() => {
     card.style.transition = 'none';
     card.classList.remove('flipped');
     stepCard(step);
-    card.style.transform = `translate3d(${enterX}px, 0, 0)`;
+    card.style.transform = `translate3d(${enterX}px,0,0)`;
     card.style.opacity = '0';
     card.offsetHeight;
-    card.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease';
+    card.style.transition = 'transform 0.28s cubic-bezier(0.16,1,0.3,1), opacity 0.28s ease';
     card.style.transform = '';
     card.style.opacity = '';
     setTimeout(() => {
@@ -3847,16 +3828,12 @@ window.onload = () => {
   // Mở khoá AudioContext xử lý phát âm ngay từ cử chỉ chạm/click đầu tiên (bắt buộc trên iOS Safari).
   window.addEventListener('pointerdown', () => { getPronunciationAudioCtx(); }, { once: true });
 
+  // Gắn touch events lên card với passive:false để gọi preventDefault() có chọn lọc:
+  // chỉ chặn khi vuốt ngang (kéo thẻ), vuốt dọc thì không preventDefault
+  // → browser tự scroll dọc natively (mượt, không giật, không JS scroll).
   const cardEl = document.getElementById('card');
-
-  // touchstart: passive=true, chỉ ghi nhớ điểm bắt đầu
-  cardEl.addEventListener('touchstart', startCardSwipe, { passive: true });
-
-  // touchmove: passive=false để có thể preventDefault khi cần
-  // touch-action: pan-y trên card → browser CHỈ block horizontal natively
-  // JS gọi preventDefault() ngay khi xác định là ngang → chặn browser override
-  cardEl.addEventListener('touchmove', moveCardSwipe, { passive: false });
-
+  cardEl.addEventListener('touchstart',  startCardSwipe,  { passive: true });
+  cardEl.addEventListener('touchmove',   moveCardSwipe,   { passive: false });
   cardEl.addEventListener('touchend',    endCardSwipe,    { passive: true });
   cardEl.addEventListener('touchcancel', cancelCardSwipe, { passive: true });
 
@@ -3866,11 +3843,10 @@ window.onload = () => {
     swipeStartX = e.clientX; swipeStartY = e.clientY; swipeStartT = e.timeStamp;
     lastMoveX = e.clientX; lastMoveT = e.timeStamp;
     swipeVelocity = 0; peakVelocity = 0; isDragging = false; isScrollingVertically = false;
-    pendingDragX = 0;
     isFlippedAtDragStart = cardEl.classList.contains('flipped');
     const onMove = (me) => {
       const dx = me.clientX - swipeStartX, dy = me.clientY - swipeStartY;
-      if (!isDragging && !isScrollingVertically) {
+      if (!isDragging) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_LOCK_PX) return;
         if (Math.abs(dy) > Math.abs(dx) * 1.4) { isScrollingVertically = true; return; }
         isDragging = true; cardEl.classList.add('dragging');
@@ -3881,13 +3857,20 @@ window.onload = () => {
       swipeVelocity = iv * 0.4 + swipeVelocity * 0.6;
       if (Math.abs(swipeVelocity) > Math.abs(peakVelocity)) peakVelocity = swipeVelocity;
       lastMoveX = me.clientX; lastMoveT = me.timeStamp;
-      pendingDragX = dx;
-      if (!rafPending) { rafPending = true; requestAnimationFrame(applyDragFrame); }
+      const MAX_DRAG = window.innerWidth * 0.45;
+      const cx = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, dx));
+      const baseRotateY = isFlippedAtDragStart ? 180 : 0;
+      cardEl.style.transform = `translate3d(${cx}px,0,0) rotate(${cx*0.04}deg) rotateY(${baseRotateY}deg)`;
+      const ratio = Math.abs(cx)/MAX_DRAG;
+      document.getElementById('swipeNextHint').style.opacity = cx < -10 ? Math.min(ratio*2,1) : 0;
+      document.getElementById('swipePrevHint').style.opacity = cx > 10  ? Math.min(ratio*2,1) : 0;
     };
     const onUp = (ue) => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
-      endCardSwipe({ changedTouches: [{ clientX: ue.clientX, clientY: ue.clientY }], timeStamp: ue.timeStamp });
+      // Reuse touch endCardSwipe logic via synthetic-like call
+      const fakeEvent = { changedTouches: [{ clientX: ue.clientX, clientY: ue.clientY }], timeStamp: ue.timeStamp };
+      endCardSwipe(fakeEvent);
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
