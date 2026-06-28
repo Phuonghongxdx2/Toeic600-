@@ -1891,6 +1891,8 @@ let swipeStartT = 0;
 let swipePointerId = null;
 let suppressCardClick = false;
 let isDragging = false;
+let isScrollingVertically = false; // true khi đã xác định cử chỉ là vuốt dọc → tự cuộn trang
+let scrollStartScrollY = 0;        // window.scrollY tại thời điểm bắt đầu chạm
 let isAnimatingOut = false;     // true trong lúc thẻ đang bay ra / thẻ mới đang trượt vào
 let isFlippedAtDragStart = false;
 let lastMoveX = 0;
@@ -1926,8 +1928,10 @@ function startCardSwipe(event) {
   peakVelocity = 0;
   swipePointerId = event.pointerId;
   isDragging = false;
+  isScrollingVertically = false;
+  scrollStartScrollY = window.scrollY;
   isFlippedAtDragStart = card.classList.contains('flipped');
-  card.setPointerCapture?.(event.pointerId);
+  // KHÔNG setPointerCapture ngay — chờ xác định hướng cử chỉ trong moveCardSwipe
 }
 
 function moveCardSwipe(event) {
@@ -1936,16 +1940,29 @@ function moveCardSwipe(event) {
   const deltaX = event.clientX - swipeStartX;
   const deltaY = event.clientY - swipeStartY;
 
-  // Chỉ bắt đầu kéo khi xác định rõ là cử chỉ ngang (tránh cản cuộn dọc).
-  // ĐÃ NỚI ĐIỀU KIỆN: trước đây yêu cầu |dx| > |dy| tuyệt đối khiến vuốt nhẹ/run tay
-  // nhẹ không "dính" được (do dao động dọc tự nhiên lúc mới đặt tay). Giờ chỉ chặn khi
-  // RÕ RÀNG là vuốt dọc (dọc vượt ngang khá nhiều), còn lại cho khoá kéo sớm hơn.
-  if (!isDragging) {
-    if (Math.abs(deltaX) < DRAG_LOCK_PX) return;
-    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) return; // rõ ràng là vuốt dọc → bỏ qua
-    isDragging = true;
-    card.classList.add('dragging');
+  // Chưa xác định hướng → đợi ngón tay lệch đủ để phán đoán
+  if (!isDragging && !isScrollingVertically) {
+    const moved = Math.max(Math.abs(deltaX), Math.abs(deltaY));
+    if (moved < DRAG_LOCK_PX) return; // chưa đủ lệch để phán đoán
+
+    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
+      // Rõ ràng là vuốt dọc → chế độ tự cuộn trang, KHÔNG capture pointer
+      isScrollingVertically = true;
+    } else {
+      // Vuốt ngang → khoá kéo thẻ, capture pointer để không mất event
+      isDragging = true;
+      card.classList.add('dragging');
+      card.setPointerCapture?.(event.pointerId);
+    }
   }
+
+  // Chế độ cuộn dọc: tự cuộn window để bù lại touch-action:none
+  if (isScrollingVertically) {
+    window.scrollTo(0, scrollStartScrollY - deltaY);
+    return;
+  }
+
+  if (!isDragging) return;
 
   // Tính vận tốc tức thời để nhận diện cú vẩy tay nhanh.
   const dt = Math.max(1, event.timeStamp - lastMoveT);
@@ -1993,6 +2010,13 @@ function endCardSwipe(event) {
   isDragging = false;
   card.classList.remove('dragging');
   resetSwipeHints();
+
+  // Nếu đã xác định là cuộn dọc → dừng, không xử lý vuốt thẻ
+  if (isScrollingVertically) {
+    isScrollingVertically = false;
+    return;
+  }
+  isScrollingVertically = false;
 
   // Nếu rõ ràng là cử chỉ dọc (đang cố cuộn trang) thì không tính là vuốt thẻ.
   if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
@@ -2067,6 +2091,7 @@ function cancelCardSwipe() {
     resetSwipeHints();
     isDragging = false;
   }
+  isScrollingVertically = false;
   swipePointerId = null;
 }
 
