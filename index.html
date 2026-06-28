@@ -1892,7 +1892,7 @@ let swipePointerId = null;
 let suppressCardClick = false;
 let isDragging = false;
 let isScrollingVertically = false; // true khi đã xác định cử chỉ là vuốt dọc → tự cuộn trang
-let scrollStartScrollY = 0;        // window.scrollY tại thời điểm bắt đầu chạm
+let lastScrollY = 0;               // clientY của frame trước, để tính delta tương đối
 let isAnimatingOut = false;     // true trong lúc thẻ đang bay ra / thẻ mới đang trượt vào
 let isFlippedAtDragStart = false;
 let lastMoveX = 0;
@@ -1929,7 +1929,7 @@ function startCardSwipe(event) {
   swipePointerId = event.pointerId;
   isDragging = false;
   isScrollingVertically = false;
-  scrollStartScrollY = window.scrollY;
+  lastScrollY = 0;
   isFlippedAtDragStart = card.classList.contains('flipped');
   // KHÔNG setPointerCapture ngay — chờ xác định hướng cử chỉ trong moveCardSwipe
 }
@@ -1948,6 +1948,7 @@ function moveCardSwipe(event) {
     if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
       // Rõ ràng là vuốt dọc → chế độ tự cuộn trang, KHÔNG capture pointer
       isScrollingVertically = true;
+      lastScrollY = event.clientY; // bắt đầu track từ vị trí hiện tại
     } else {
       // Vuốt ngang → khoá kéo thẻ, capture pointer để không mất event
       isDragging = true;
@@ -1956,9 +1957,11 @@ function moveCardSwipe(event) {
     }
   }
 
-  // Chế độ cuộn dọc: tự cuộn window để bù lại touch-action:none
+  // Chế độ cuộn dọc: dùng scrollBy với delta tương đối giữa 2 frame → không rung
   if (isScrollingVertically) {
-    window.scrollTo(0, scrollStartScrollY - deltaY);
+    const dy = lastScrollY - event.clientY;
+    lastScrollY = event.clientY;
+    window.scrollBy({ top: dy, behavior: 'instant' });
     return;
   }
 
