@@ -170,14 +170,13 @@
     display: flex; align-items: center; justify-content: center;
     padding: 10px 20px; perspective: 1000px;
     height: 340px; flex-shrink: 0;
-    touch-action: pan-y;
   }
   
   .card-box {
     width: 100%; max-width: 400px; height: 300px;
     position: relative; transform-style: preserve-3d;
     transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-    cursor: grab; touch-action: none; user-select: none;
+    cursor: grab; touch-action: pan-y; user-select: none;
     will-change: transform;
   }
   .card-box.dragging { transition: none; }
@@ -699,9 +698,7 @@
   </div>
 
   <div class="main">
-    <div class="card-box" id="card" onclick="handleCardClick(event)"
-         onpointerdown="startCardSwipe(event)" onpointermove="moveCardSwipe(event)"
-         onpointerup="endCardSwipe(event)" onpointercancel="cancelCardSwipe()">
+    <div class="card-box" id="card" onclick="handleCardClick(event)">
       <div class="swipe-indicator prev" id="swipePrevHint">← Trước</div>
       <div class="swipe-indicator next" id="swipeNextHint">Tiếp →</div>
       <!-- Mặt trước thẻ -->
@@ -1945,12 +1942,11 @@ function moveCardSwipe(event) {
     if (moved < DRAG_LOCK_PX) return;
 
     if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
-      // Vuốt dọc → nhả capture, để browser scroll natively qua touch-action: pan-y của .main
+      // Vuốt dọc → đánh dấu để ignore, KHÔNG preventDefault → browser scroll natively
       isScrollingVertically = true;
-      try { card.releasePointerCapture?.(event.pointerId); } catch(e) {}
       return;
     } else {
-      // Vuốt ngang → khoá kéo thẻ
+      // Vuốt ngang → lock kéo thẻ
       isDragging = true;
       card.classList.add('dragging');
       card.setPointerCapture?.(event.pointerId);
@@ -1958,6 +1954,9 @@ function moveCardSwipe(event) {
   }
 
   if (isScrollingVertically) return;
+
+  // Chỉ chặn scroll khi đang kéo thẻ ngang
+  event.preventDefault();
 
   if (!isDragging) return;
 
@@ -3853,6 +3852,15 @@ window.onload = () => {
 
   // Mở khoá AudioContext xử lý phát âm ngay từ cử chỉ chạm/click đầu tiên (bắt buộc trên iOS Safari).
   window.addEventListener('pointerdown', () => { getPronunciationAudioCtx(); }, { once: true });
+
+  // Gắn pointer events lên card với passive:false để có thể gọi preventDefault()
+  // chỉ khi vuốt ngang (chặn browser scroll ngang), còn vuốt dọc thì không preventDefault
+  // → browser tự scroll dọc natively qua touch-action: pan-y trên card.
+  const cardEl = document.getElementById('card');
+  cardEl.addEventListener('pointerdown',   startCardSwipe, { passive: false });
+  cardEl.addEventListener('pointermove',   moveCardSwipe,  { passive: false });
+  cardEl.addEventListener('pointerup',     endCardSwipe,   { passive: false });
+  cardEl.addEventListener('pointercancel', cancelCardSwipe,{ passive: false });
 };
 </script>
 </body>
