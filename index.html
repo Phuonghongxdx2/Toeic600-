@@ -1943,7 +1943,11 @@ function startCardSwipe(event) {
   swipePointerId = event.pointerId;
   isDragging = false;
   isFlippedAtDragStart = card.classList.contains('flipped');
-  card.setPointerCapture?.(event.pointerId);
+  // KHÔNG setPointerCapture ở đây nữa! Capture pointer ngay từ pointerdown khiến trình
+  // duyệt gắn việc xác định default action (cuộn dọc) vào #card thay vì vùng .card-side
+  // bên trong (nơi thật sự có overflow-y: auto) → mọi cử chỉ, kể cả vuốt dọc, đều bị
+  // "khoá" vào #card và không cuộn được nữa. Giờ chỉ capture khi ĐÃ xác định là vuốt
+  // ngang (xem moveCardSwipe), để vuốt dọc luôn được trình duyệt xử lý tự nhiên 100%.
 }
 
 function moveCardSwipe(event) {
@@ -1962,12 +1966,15 @@ function moveCardSwipe(event) {
       gestureDirection = 'horizontal';
       isDragging = true;
       card.classList.add('dragging');
+      // Chỉ capture pointer vào #card ĐÚNG LÚC xác định là vuốt ngang, để ngón tay có
+      // lệch ra ngoài vùng thẻ vẫn tiếp tục điều khiển được thẻ tới khi nhả tay.
+      card.setPointerCapture?.(event.pointerId);
     }
   }
 
   if (gestureDirection === 'vertical') {
     // Vuốt dọc → để trình duyệt tự cuộn (đã có touch-action: pan-y cho phép),
-    // KHÔNG preventDefault, không chạm vào style của thẻ.
+    // KHÔNG preventDefault, không setPointerCapture, không chạm vào style của thẻ.
     return;
   }
 
