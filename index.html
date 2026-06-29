@@ -1896,13 +1896,50 @@ let isFlippedAtDragStart = false;
 let lastMoveX = 0;
 let lastMoveT = 0;
 let swipeVelocity = 0;
-let peakVelocity = 0;           // vận tốc LỚN NHẤT ghi nhận được trong cả cử chỉ
-const SWIPE_DISTANCE_THRESHOLD = 65;    // giảm từ 90 → 65: không cần kéo xa mới qua thẻ
-const SWIPE_VELOCITY_THRESHOLD = 0.28;  // giảm từ 0.55 → 0.28: chỉ cần phẩy nhẹ là đủ
+let peakVelocity = 0;           // vận tốc LỚN NHẤT ghi nhận được trong cả cử chỉ (theo trục ngang)
+const SWIPE_DISTANCE_THRESHOLD = 65;    // không cần kéo xa mới qua thẻ
+const SWIPE_VELOCITY_THRESHOLD = 0.28;  // chỉ cần phẩy nhẹ là đủ
 const SWIPE_MIN_FLICK_DISTANCE = 14;    // lệch tối thiểu để không nhận nhầm cú chạm/tay run là phẩy
-const DRAG_LOCK_PX = 4;                 // chỉ cần lệch ngang rất nhỏ là "dính" kéo
+const DRAG_LOCK_PX = 4;                 // chỉ cần lệch rất nhỏ là quyết định được hướng cử chỉ
+
+// gestureDirection: null (chưa xác định) | 'horizontal' (vuốt thẻ) | 'vertical' (cuộn trang)
+// Vì .card-box dùng touch-action: none (để JS giành quyền xử lý vuốt ngang ngay lập tức,
+// không bị trình duyệt "phân loại rồi huỷ" cử chỉ nhẹ), trình duyệt KHÔNG còn tự cuộn dọc
+// qua vùng thẻ nữa → phải tự mô phỏng lại việc cuộn bằng JS bên dưới (kèm đà/momentum).
+let gestureDirection = null;
+let lastScrollY = 0;
+let scrollVelocity = 0;
+let momentumRAF = null;
 
 function getCardEl() { return document.getElementById('card'); }
+
+function getScrollEl() {
+  const b = document.body, d = document.documentElement;
+  return (b.scrollHeight > b.clientHeight + 1) ? b : d;
+}
+
+function stopScrollMomentum() {
+  if (momentumRAF) { cancelAnimationFrame(momentumRAF); momentumRAF = null; }
+}
+
+function runScrollMomentum(initialVelocity) {
+  stopScrollMomentum();
+  let velocity = initialVelocity; // px/ms
+  let lastT = performance.now();
+  const scrollEl = getScrollEl();
+  function step(now) {
+    const dt = Math.min(48, now - lastT);
+    lastT = now;
+    scrollEl.scrollTop -= velocity * dt;
+    velocity *= 0.94; // ma sát — giảm dần đà mỗi khung hình
+    if (Math.abs(velocity) > 0.01) {
+      momentumRAF = requestAnimationFrame(step);
+    } else {
+      momentumRAF = null;
+    }
+  }
+  momentumRAF = requestAnimationFrame(step);
+}
 
 function handleCardClick() {
   if (suppressCardClick) {
@@ -1916,14 +1953,18 @@ function handleCardClick() {
 function startCardSwipe(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
   if (isAnimatingOut) return; // chặn bắt đầu vuốt mới khi thẻ trước chưa "yên", tránh giật
+  stopScrollMomentum(); // chạm tay vào lại giữa lúc đang trôi đà cuộn → dừng đà ngay, như cuộn thật
   const card = getCardEl();
   swipeStartX = event.clientX;
   swipeStartY = event.clientY;
   swipeStartT = event.timeStamp;
   lastMoveX = event.clientX;
   lastMoveT = event.timeStamp;
+  lastScrollY = event.clientY;
   swipeVelocity = 0;
   peakVelocity = 0;
+  scrollVelocity = 0;
+  gestureDirection = null;
   swipePointerId = event.pointerId;
   isDragging = false;
   isFlippedAtDragStart = card.classList.contains('flipped');
@@ -1936,15 +1977,28 @@ function moveCardSwipe(event) {
   const deltaX = event.clientX - swipeStartX;
   const deltaY = event.clientY - swipeStartY;
 
-  // Chỉ bắt đầu kéo khi xác định rõ là cử chỉ ngang (tránh cản cuộn dọc).
-  // ĐÃ NỚI ĐIỀU KIỆN: trước đây yêu cầu |dx| > |dy| tuyệt đối khiến vuốt nhẹ/run tay
-  // nhẹ không "dính" được (do dao động dọc tự nhiên lúc mới đặt tay). Giờ chỉ chặn khi
-  // RÕ RÀNG là vuốt dọc (dọc vượt ngang khá nhiều), còn lại cho khoá kéo sớm hơn.
-  if (!isDragging) {
-    if (Math.abs(deltaX) < DRAG_LOCK_PX) return;
-    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) return; // rõ ràng là vuốt dọc → bỏ qua
-    isDragging = true;
-    card.classList.add('dragging');
+  // Quyết định hướng cử chỉ MỘT LẦN duy nhất khi đã lệch đủ rõ, rồi giữ nguyên hướng đó
+  // cho tới khi nhả tay — tránh việc cứ mỗi sự kiện move lại đánh giá lại hướng gây giật.
+  if (gestureDirection === null) {
+    if (Math.abs(deltaX) < DRAG_LOCK_PX && Math.abs(deltaY) < DRAG_LOCK_PX) return;
+    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
+      gestureDirection = 'vertical';
+    } else {
+      gestureDirection = 'horizontal';
+      isDragging = true;
+      card.classList.add('dragging');
+    }
+  }
+
+  if (gestureDirection === 'vertical') {
+    // Tự mô phỏng cuộn trang (vì touch-action: none đã tắt cuộn tự động của trình duyệt).
+    const incY = event.clientY - lastScrollY;
+    getScrollEl().scrollTop -= incY;
+    lastScrollY = event.clientY;
+    const dt = Math.max(1, event.timeStamp - lastMoveT);
+    scrollVelocity = -incY / dt; // dùng để tạo đà khi nhả tay
+    lastMoveT = event.timeStamp;
+    return;
   }
 
   // Tính vận tốc tức thời để nhận diện cú vẩy tay nhanh.
@@ -1989,22 +2043,23 @@ function endCardSwipe(event) {
   const avgVelocity = deltaX / elapsed; // vận tốc trung bình cả cử chỉ — vẫn dùng được
   swipePointerId = null;               // dù cử chỉ quá nhanh, ít/không có pointermove
 
+  // Cử chỉ là cuộn dọc → thả đà cuộn (momentum) rồi dừng, không đụng tới logic vuốt thẻ.
+  if (gestureDirection === 'vertical') {
+    if (Math.abs(scrollVelocity) > 0.02) runScrollMomentum(scrollVelocity);
+    gestureDirection = null;
+    return;
+  }
+
   const wasDragging = isDragging;
   isDragging = false;
   card.classList.remove('dragging');
   resetSwipeHints();
+  gestureDirection = null;
 
-  // Nếu rõ ràng là cử chỉ dọc (đang cố cuộn trang) thì không tính là vuốt thẻ.
-  if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
-    if (wasDragging) card.style.transform = '';
-    return;
-  }
-
-  // QUAN TRỌNG: trước đây hàm này return ngay nếu isDragging chưa từng được set true
-  // (`if (!isDragging) return;`). Một cú phẩy tay rất nhanh/ngắn có thể chỉ sinh ra
-  // 0–1 sự kiện pointermove, khiến isDragging chưa kịp "khoá" trước khi pointerup tới,
-  // và toàn bộ cử chỉ bị huỷ dù vẩy rất nhanh. Giờ luôn xét theo độ lệch & vận tốc
-  // thực tế từ lúc đặt tay đến lúc nhả tay, không phụ thuộc cờ isDragging nữa.
+  // QUAN TRỌNG: trước đây hàm này return ngay nếu isDragging chưa từng được set true.
+  // Một cú phẩy tay rất nhanh/ngắn có thể chỉ sinh ra 0–1 sự kiện pointermove, khiến
+  // isDragging chưa kịp "khoá" trước khi pointerup tới, và toàn bộ cử chỉ bị huỷ dù vẩy
+  // rất nhanh. Giờ luôn xét theo độ lệch & vận tốc thực tế, không phụ thuộc cờ isDragging.
   const decisiveVelocity =
     Math.abs(peakVelocity) > Math.abs(avgVelocity) ? peakVelocity : avgVelocity;
 
@@ -2067,6 +2122,7 @@ function cancelCardSwipe() {
     resetSwipeHints();
     isDragging = false;
   }
+  gestureDirection = null;
   swipePointerId = null;
 }
 
