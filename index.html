@@ -176,7 +176,7 @@
     width: 100%; max-width: 400px; height: 300px;
     position: relative; transform-style: preserve-3d;
     transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-    cursor: grab; touch-action: pan-x pan-y; user-select: none;
+    cursor: grab; touch-action: pan-y; user-select: none;
     will-change: transform;
   }
   .card-box.dragging { transition: none; }
@@ -197,24 +197,10 @@
   .card-side {
     position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
     background: var(--panel); border-radius: 28px; padding: 24px;
-    display: flex; flex-direction: column; align-items: center;
-    /* Đổi từ center sang flex-start để nội dung dài bắt đầu từ trên đỉnh khi cuộn */
-    justify-content: flex-start;
-    /* MẶC ĐỊNH không bật overflow-y/touch-action riêng: nếu để overflow-y:auto luôn luôn,
-       .card-side sẽ "giành" mất gesture vuốt dọc dù chẳng có gì để cuộn (nội dung ngắn),
-       khiến cử chỉ bị nuốt tại đây và KHÔNG trôi lên để cuộn được cả trang nữa.
-       touch-action không khai báo riêng → kế thừa "pan-x pan-y" từ .card-box ở ngoài,
-       nên gesture dọc luôn được trình duyệt cuộn TRANG bình thường theo mặc định. */
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; border: 1px solid var(--border);
     box-shadow: 0 12px 40px rgba(0,0,0,0.15);
     transition: background 0.3s, border-color 0.3s;
-  }
-  /* CHỈ khi JS đo thấy nội dung thật sự dài hơn khung thẻ (xem updateCardSideScrollability())
-     mới gắn class này để bật cuộn nội bộ trong thẻ — tránh nuốt gesture khi không cần thiết. */
-  .card-side.scrollable {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* chống kẹt cảm ứng / giữ quán tính cuộn mượt trên iOS */
-    touch-action: pan-y;
   }
   :root[data-theme="dark"] .card-side { box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
   .card-back { transform: rotateY(180deg); }
@@ -1878,21 +1864,7 @@ function renderCard() {
 
   document.getElementById('counterText').innerText = `${currentIndex + 1}/${total}`;
   updateGlobalStats();
-  updateCardSideScrollability();
 }
-
-// Chỉ gắn class "scrollable" (bật overflow-y:auto + touch-action:pan-y riêng) cho mặt thẻ
-// nào ĐANG THỰC SỰ dài hơn khung hiển thị. Mặt còn lại (và mọi trường hợp nội dung ngắn)
-// giữ nguyên không overflow-y riêng, để gesture vuốt dọc trôi thẳng lên cuộn cả trang.
-function updateCardSideScrollability() {
-  requestAnimationFrame(() => {
-    document.querySelectorAll('.card-side').forEach(side => {
-      const isLong = side.scrollHeight > side.clientHeight + 1;
-      side.classList.toggle('scrollable', isLong);
-    });
-  });
-}
-window.addEventListener('resize', updateCardSideScrollability);
 
 function updateGlobalStats() {
   const totalCount = words.length;
@@ -1915,27 +1887,15 @@ function updateGlobalStats() {
 /* ============== HỆ THỐNG VUỐT THẺ MƯỢT (THEO THỜI GIAN THỰC) ============== */
 let swipeStartX = 0;
 let swipeStartY = 0;
-let swipeStartT = 0;
 let swipePointerId = null;
 let suppressCardClick = false;
 let isDragging = false;
-let isAnimatingOut = false;     // true trong lúc thẻ đang bay ra / thẻ mới đang trượt vào
 let isFlippedAtDragStart = false;
 let lastMoveX = 0;
 let lastMoveT = 0;
 let swipeVelocity = 0;
-let peakVelocity = 0;           // vận tốc LỚN NHẤT ghi nhận được trong cả cử chỉ (theo trục ngang)
-const SWIPE_DISTANCE_THRESHOLD = 65;    // không cần kéo xa mới qua thẻ
-const SWIPE_VELOCITY_THRESHOLD = 0.28;  // chỉ cần phẩy nhẹ là đủ
-const SWIPE_MIN_FLICK_DISTANCE = 14;    // lệch tối thiểu để không nhận nhầm cú chạm/tay run là phẩy
-const DRAG_LOCK_PX = 4;                 // chỉ cần lệch rất nhỏ là quyết định được hướng cử chỉ
-
-// gestureDirection: null (chưa xác định) | 'horizontal' (vuốt thẻ) | 'vertical' (cuộn trang)
-// .card-box và .card-side đều dùng touch-action: pan-x pan-y nên trình duyệt VẪN tự xử lý
-// cuộn dọc (có quán tính/momentum thật của hệ điều hành, mượt hơn mọi mô phỏng bằng JS).
-// JS chỉ can thiệp bằng event.preventDefault() ngay khi xác định rõ là vuốt NGANG, để
-// trình duyệt không "giành" gesture đó cho việc pan/scroll nữa.
-let gestureDirection = null;
+const SWIPE_DISTANCE_THRESHOLD = 90;   // px tối thiểu để xem là vuốt thành công
+const SWIPE_VELOCITY_THRESHOLD = 0.55; // px/ms — vuốt nhanh (vẩy tay) cũng được tính
 
 function getCardEl() { return document.getElementById('card'); }
 
@@ -1944,30 +1904,21 @@ function handleCardClick() {
     suppressCardClick = false;
     return;
   }
-  if (isAnimatingOut) return; // tránh lật thẻ trong lúc thẻ đang chạy animation chuyển
   flipCard();
 }
 
 function startCardSwipe(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
-  if (isAnimatingOut) return; // chặn bắt đầu vuốt mới khi thẻ trước chưa "yên", tránh giật
   const card = getCardEl();
   swipeStartX = event.clientX;
   swipeStartY = event.clientY;
-  swipeStartT = event.timeStamp;
   lastMoveX = event.clientX;
   lastMoveT = event.timeStamp;
   swipeVelocity = 0;
-  peakVelocity = 0;
-  gestureDirection = null;
   swipePointerId = event.pointerId;
   isDragging = false;
   isFlippedAtDragStart = card.classList.contains('flipped');
-  // KHÔNG setPointerCapture ở đây nữa! Capture pointer ngay từ pointerdown khiến trình
-  // duyệt gắn việc xác định default action (cuộn dọc) vào #card thay vì vùng .card-side
-  // bên trong (nơi thật sự có overflow-y: auto) → mọi cử chỉ, kể cả vuốt dọc, đều bị
-  // "khoá" vào #card và không cuộn được nữa. Giờ chỉ capture khi ĐÃ xác định là vuốt
-  // ngang (xem moveCardSwipe), để vuốt dọc luôn được trình duyệt xử lý tự nhiên 100%.
+  card.setPointerCapture?.(event.pointerId);
 }
 
 function moveCardSwipe(event) {
@@ -1976,40 +1927,16 @@ function moveCardSwipe(event) {
   const deltaX = event.clientX - swipeStartX;
   const deltaY = event.clientY - swipeStartY;
 
-  // Quyết định hướng cử chỉ MỘT LẦN duy nhất khi đã lệch đủ rõ, rồi giữ nguyên hướng đó
-  // cho tới khi nhả tay — tránh việc cứ mỗi sự kiện move lại đánh giá lại hướng gây giật.
-  if (gestureDirection === null) {
-    if (Math.abs(deltaX) < DRAG_LOCK_PX && Math.abs(deltaY) < DRAG_LOCK_PX) return;
-    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.4) {
-      gestureDirection = 'vertical';
-    } else {
-      gestureDirection = 'horizontal';
-      isDragging = true;
-      card.classList.add('dragging');
-      // Chỉ capture pointer vào #card ĐÚNG LÚC xác định là vuốt ngang, để ngón tay có
-      // lệch ra ngoài vùng thẻ vẫn tiếp tục điều khiển được thẻ tới khi nhả tay.
-      card.setPointerCapture?.(event.pointerId);
-    }
+  // Chỉ bắt đầu kéo khi xác định rõ là cử chỉ ngang (tránh cản cuộn dọc).
+  if (!isDragging) {
+    if (Math.abs(deltaX) < 8 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    isDragging = true;
+    card.classList.add('dragging');
   }
-
-  if (gestureDirection === 'vertical') {
-    // Vuốt dọc → để trình duyệt tự cuộn (đã có touch-action: pan-y cho phép),
-    // KHÔNG preventDefault, không setPointerCapture, không chạm vào style của thẻ.
-    return;
-  }
-
-  // Vuốt ngang → chặn hành vi pan/scroll mặc định của trình duyệt cho đúng cử chỉ này,
-  // để toàn quyền xử lý vuốt-chuyển-thẻ nằm ở JS, không bị trình duyệt giành mất giữa đường.
-  if (event.cancelable) event.preventDefault();
 
   // Tính vận tốc tức thời để nhận diện cú vẩy tay nhanh.
   const dt = Math.max(1, event.timeStamp - lastMoveT);
-  const instVelocity = (event.clientX - lastMoveX) / dt;
-  swipeVelocity = instVelocity;
-  // Lưu vận tốc ĐỈNH trong toàn bộ cử chỉ: ngay trước khi nhả tay, ngón tay
-  // thường hơi chậm lại tự nhiên — nếu chỉ lấy mẫu cuối để xét "phẩy nhanh"
-  // sẽ luôn đánh giá thấp tốc độ thật, khiến phẩy nhẹ/nhanh bị coi là chưa đủ.
-  if (Math.abs(instVelocity) > Math.abs(peakVelocity)) peakVelocity = instVelocity;
+  swipeVelocity = (event.clientX - lastMoveX) / dt;
   lastMoveX = event.clientX;
   lastMoveT = event.timeStamp;
 
@@ -2017,12 +1944,10 @@ function moveCardSwipe(event) {
   const rubberDeltaX = deltaX * (1 - Math.min(Math.abs(deltaX) / 900, 0.35));
   const rotate = Math.max(-14, Math.min(14, rubberDeltaX / 14));
   const liftY = Math.min(Math.abs(deltaX) * 0.04, 14);
-  // Chỉ thêm rotateY khi thẻ đang ở mặt sau — tránh ép trình duyệt dựng layer 3D
-  // không cần thiết khi thẻ đang ở mặt trước (đỡ tốn GPU, kéo mượt hơn trên máy yếu).
-  const rotateYPart = isFlippedAtDragStart ? ' rotateY(180deg)' : '';
+  const baseRotateY = isFlippedAtDragStart ? 180 : 0;
 
   card.style.transform =
-    `translate3d(${rubberDeltaX}px, ${-liftY}px, 0) rotate(${rotate}deg)${rotateYPart}`;
+    `translate3d(${rubberDeltaX}px, ${-liftY}px, 0) rotate(${rotate}deg) rotateY(${baseRotateY}deg)`;
 
   // Gợi ý hướng hiện dần theo khoảng cách kéo.
   const progress = Math.min(Math.abs(rubberDeltaX) / SWIPE_DISTANCE_THRESHOLD, 1);
@@ -2040,48 +1965,28 @@ function endCardSwipe(event) {
   const card = getCardEl();
   const deltaX = event.clientX - swipeStartX;
   const deltaY = event.clientY - swipeStartY;
-  const elapsed = Math.max(1, event.timeStamp - swipeStartT);
-  const avgVelocity = deltaX / elapsed; // vận tốc trung bình cả cử chỉ — vẫn dùng được
-  swipePointerId = null;               // dù cử chỉ quá nhanh, ít/không có pointermove
+  swipePointerId = null;
 
-  // Cử chỉ là cuộn dọc → không đụng tới logic vuốt thẻ, để trình duyệt tự lo phần còn lại
-  // (kể cả đà/momentum khi nhả tay — vì chưa từng preventDefault nên cuộn vẫn diễn ra tự nhiên).
-  if (gestureDirection === 'vertical') {
-    gestureDirection = null;
-    return;
-  }
-
-  const wasDragging = isDragging;
+  if (!isDragging) return;
   isDragging = false;
   card.classList.remove('dragging');
   resetSwipeHints();
-  gestureDirection = null;
 
-  // QUAN TRỌNG: trước đây hàm này return ngay nếu isDragging chưa từng được set true.
-  // Một cú phẩy tay rất nhanh/ngắn có thể chỉ sinh ra 0–1 sự kiện pointermove, khiến
-  // isDragging chưa kịp "khoá" trước khi pointerup tới, và toàn bộ cử chỉ bị huỷ dù vẩy
-  // rất nhanh. Giờ luôn xét theo độ lệch & vận tốc thực tế, không phụ thuộc cờ isDragging.
-  const decisiveVelocity =
-    Math.abs(peakVelocity) > Math.abs(avgVelocity) ? peakVelocity : avgVelocity;
-
-  const isFastFlick = Math.abs(decisiveVelocity) > SWIPE_VELOCITY_THRESHOLD
-                       && Math.abs(deltaX) > SWIPE_MIN_FLICK_DISTANCE;
-  const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD;
+  const isFastFlick = Math.abs(swipeVelocity) > SWIPE_VELOCITY_THRESHOLD && Math.abs(deltaX) > 24;
+  const isFarEnough = Math.abs(deltaX) > SWIPE_DISTANCE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY);
 
   if (!isFastFlick && !isFarEnough) {
-    // Kéo không đủ xa và không đủ nhanh → đàn hồi mượt trở lại vị trí gốc.
-    if (wasDragging) card.style.transform = '';
+    // Kéo không đủ xa → đàn hồi mượt trở lại vị trí gốc.
+    card.style.transform = '';
     return;
   }
 
   suppressCardClick = true;
-  isAnimatingOut = true;
   const direction = deltaX < 0 ? -1 : 1; // -1: sang trái (tiếp theo), 1: sang phải (trước đó)
   const step = direction < 0 ? 1 : -1;
   const baseRotateY = isFlippedAtDragStart ? 180 : 0;
   const flyX = direction < 0 ? -window.innerWidth : window.innerWidth;
   const flyRotate = direction < 0 ? -18 : 18;
-  const enterX = -flyX * 0.22; // thẻ mới sẽ lệch nhẹ ngược hướng bay ra rồi trượt vào giữa
 
   // Bay ra mượt mà bằng transition CSS thật (không dùng keyframes cứng).
   card.style.transition = 'transform 0.32s cubic-bezier(0.36, 0, 0.66, -0.05), opacity 0.32s ease';
@@ -2089,29 +1994,11 @@ function endCardSwipe(event) {
   card.style.opacity = '0';
 
   setTimeout(() => {
-    // QUAN TRỌNG: tắt transition TRƯỚC khi đổi nội dung & bỏ class "flipped".
-    // Trước đây bỏ "flipped" trong lúc transition mặc định (0.45s) còn đang hoạt động
-    // khiến thẻ tự lật ngược lại đúng lúc thẻ mới xuất hiện, chồng lấn với animation
-    // bay ra → cảm giác giật, không mượt. Giờ đổi nội dung tức thời, không animate.
-    card.style.transition = 'none';
-    card.classList.remove('flipped');
-    stepCard(step);
-
-    // Đặt thẻ mới ở vị trí "chờ vào" (lệch nhẹ + mờ), chưa animate.
-    card.style.transform = `translate3d(${enterX}px, 0, 0)`;
-    card.style.opacity = '0';
-    card.offsetHeight; // ép trình duyệt reflow ngay để "chốt" trạng thái chờ trước khi animate
-
-    // Bật lại transition và cho thẻ mới trượt nhẹ vào vị trí + fade in — mượt, không xung đột.
-    card.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease';
+    card.style.transition = '';
     card.style.transform = '';
     card.style.opacity = '';
-
-    setTimeout(() => {
-      card.style.transition = '';
-      isAnimatingOut = false;
-      suppressCardClick = false;
-    }, 280);
+    stepCard(step);
+    suppressCardClick = false;
   }, 320);
 }
 
@@ -2123,7 +2010,6 @@ function cancelCardSwipe() {
     resetSwipeHints();
     isDragging = false;
   }
-  gestureDirection = null;
   swipePointerId = null;
 }
 
