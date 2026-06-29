@@ -200,15 +200,21 @@
     display: flex; flex-direction: column; align-items: center;
     /* Đổi từ center sang flex-start để nội dung dài bắt đầu từ trên đỉnh khi cuộn */
     justify-content: flex-start;
-    /* BẬT CUỘN DỌC TRÊN DI ĐỘNG MƯỢT MÀ */
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* chống kẹt cảm ứng / giữ quán tính cuộn mượt trên iOS */
-    /* Cho phép trình duyệt tự xử lý cuộn dọc VÀ pan ngang ngay trên .card-side;
-       JS chỉ preventDefault khi xác định rõ là vuốt ngang để lật/chuyển thẻ. */
-    touch-action: pan-x pan-y;
+    /* MẶC ĐỊNH không bật overflow-y/touch-action riêng: nếu để overflow-y:auto luôn luôn,
+       .card-side sẽ "giành" mất gesture vuốt dọc dù chẳng có gì để cuộn (nội dung ngắn),
+       khiến cử chỉ bị nuốt tại đây và KHÔNG trôi lên để cuộn được cả trang nữa.
+       touch-action không khai báo riêng → kế thừa "pan-x pan-y" từ .card-box ở ngoài,
+       nên gesture dọc luôn được trình duyệt cuộn TRANG bình thường theo mặc định. */
     text-align: center; border: 1px solid var(--border);
     box-shadow: 0 12px 40px rgba(0,0,0,0.15);
     transition: background 0.3s, border-color 0.3s;
+  }
+  /* CHỈ khi JS đo thấy nội dung thật sự dài hơn khung thẻ (xem updateCardSideScrollability())
+     mới gắn class này để bật cuộn nội bộ trong thẻ — tránh nuốt gesture khi không cần thiết. */
+  .card-side.scrollable {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* chống kẹt cảm ứng / giữ quán tính cuộn mượt trên iOS */
+    touch-action: pan-y;
   }
   :root[data-theme="dark"] .card-side { box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
   .card-back { transform: rotateY(180deg); }
@@ -1872,7 +1878,21 @@ function renderCard() {
 
   document.getElementById('counterText').innerText = `${currentIndex + 1}/${total}`;
   updateGlobalStats();
+  updateCardSideScrollability();
 }
+
+// Chỉ gắn class "scrollable" (bật overflow-y:auto + touch-action:pan-y riêng) cho mặt thẻ
+// nào ĐANG THỰC SỰ dài hơn khung hiển thị. Mặt còn lại (và mọi trường hợp nội dung ngắn)
+// giữ nguyên không overflow-y riêng, để gesture vuốt dọc trôi thẳng lên cuộn cả trang.
+function updateCardSideScrollability() {
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.card-side').forEach(side => {
+      const isLong = side.scrollHeight > side.clientHeight + 1;
+      side.classList.toggle('scrollable', isLong);
+    });
+  });
+}
+window.addEventListener('resize', updateCardSideScrollability);
 
 function updateGlobalStats() {
   const totalCount = words.length;
